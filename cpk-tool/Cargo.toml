@@ -1,0 +1,28 @@
+[package]
+name = "cpk-tool"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ansi_term = "0.12.1"
+atty = "0.2.14"
+clap = "3.0.0-beta.1"
+structopt = "0.3.17"
+thiserror = "1.0.20"
+env_logger = "0.8.2"
+pem = "0.8.2"
+base64 = "0.13.0"
+picky-asn1  = "0.3.0"
+picky-asn1-der = "0.2.4"
+serde = "1.0.123"
+sha2 = "0.9.5"
+log = "0.4.14"
+
+[lib]
+name = "cpk_tool"
+path = "src/lib.rs"
+
+[[bin]]
+name = "cpk-tool"
