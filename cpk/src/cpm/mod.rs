@@ -65,7 +65,7 @@ pub enum CpmError {
     EndApplicationDeployment,
 }
 
-//! Represents a connection to the Confidential Package Manager running in a secure enclave.
+/// Represents a connection to the Confidential Package Manager running in a secure enclave.
 pub struct ConfidentialPackageManager {
     enclave: *mut oe_enclave_t,
 }
