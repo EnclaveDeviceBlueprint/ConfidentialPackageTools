@@ -18,16 +18,16 @@ pub enum EncryptionScheme {
         /// mechanisms where multiple keys might potentially be available. The consumer is assumed to
         /// understand how to obtain the key via a suitable mechanism. Confidential packages deliberately
         /// do not provide any further information about key retrieval.
-        pub key_name: String,
+        key_name: String,
 
         /// The strength of the AES key in bits, such as 256.
-        pub key_strength: u16,
+        key_strength: u16,
 
         /// Stream index to the nonce byte vector for decryption.
-        pub nonce: u16,
+        nonce: u16,
 
         /// Stream index to the authentication tag to verify the decryption process.
-        pub tag: u16,
+        tag: u16,
     },
 }
 
@@ -42,7 +42,7 @@ pub enum DigestScheme {
     Sha256 {
         /// Stream index to the byte vector containing the SHA-256 hash for the referred
         /// content.
-        pub data: u16,
+        data: u16,
     },
 }
 
@@ -58,9 +58,9 @@ pub enum SigningScheme {
     /// Indicates a signature using RSA with PKCS1 v1.5 padding.
     RsaPkcs1v15 {
         /// The strength of the RSA key, in bits (typically 2048).
-        pub key_strength: u16,
+        key_strength: u16,
         /// Stream index to the vector of bytes containing the signature.
-        pub data: u16,
+        data: u16,
     },
 }
 
@@ -80,28 +80,28 @@ pub enum CertificationScheme {
     Target {
         /// The domain name of the package producer (eg. "somevendor.com"), which allows the target device
         /// to select a suitable signing certificate from its store.
-        pub domain: String,
+        domain: String,
     },
 
     /// Indicates that the certificate can be downloaded from a URL.
     Url {
         /// The URL to obtain the certificate. It should be possible to download an X509 file by
         /// performing a direct `wget` on this location.
-        pub url: String,
+        url: String,
     },
 
     /// Indicates that an X509 certificate is embedded directly in this confidential package in PEM
     /// format.
     EmbeddedX509Pem {
         /// The stream index of the PEM-formatted X509 certificate within the package.
-        pub data: u16,
+        data: u16,
     },
 
     /// Indicates that an X509 certificate is embedded directly in this confidential package as a
     /// DER encoding.
     EmbeddedX509Der {
         /// The stream index of the DER-encoded X509 certificate within the package.
-        pub data: u16,
+        data: u16,
     },
 
     /// Indicates that a bare public key (without a certificate) is embedded directly in this confidential
@@ -110,7 +110,7 @@ pub enum CertificationScheme {
         /// The stream index of the PEM-formatted public key data.
         ///
         /// Public keys are assumed to be encoded as SubjectPublicKeyInfo.
-        pub data: u16,
+        data: u16,
     },
 
     /// Indicates that a bare public key (without a certificate) is embedded directly in this confidential
@@ -119,7 +119,7 @@ pub enum CertificationScheme {
         /// The stream index of the DER-encoded public key data.
         ///
         /// Public keys are assumed to be encoded as SubjectPublicKeyInfo.
-        pub data: u16,
+        data: u16,
     },
 }
 

@@ -6,3 +6,4 @@
 
 pub mod cpm;
 pub mod keys;
+pub mod package;

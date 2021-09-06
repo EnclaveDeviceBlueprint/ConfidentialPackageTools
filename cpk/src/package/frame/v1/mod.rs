@@ -59,7 +59,7 @@ pub struct FixedHeader {
     // beginning of the file. The reason for this is that it allows all offsets to be precomputed
     // based purely on their size, without factoring in the variable-length part of the header. Adding
     // a new stream to a package would not affect the offsets of existing streams.
-};
+}
 
 /// This structure represents a single entry in the stream table. It is a pair of 64-bit unsigned
 /// values, where the first value is the offset of the stream data relative to the file origin,
