@@ -12,6 +12,15 @@ pub enum KeyError {
     #[error(transparent)]
     CpmKeyManagementError(#[from] crate::cpm::CpmError),
 
+    #[error(transparent)]
+    Base64DecodeError(#[from] base64::DecodeError),
+
+    #[error(transparent)]
+    WebRequestError(#[from] reqwest::Error),
+
+    #[error(transparent)]
+    Asn1Error(#[from] picky_asn1_der::Asn1DerError),
+    
     /// Unknown error.
     #[error("An error occurred for which no further information is available.")]
     Unknown,
