@@ -32,6 +32,8 @@ use cpk_sys::{
 use std::ffi::CString;
 use thiserror::Error;
 
+// TODO: These are not good error definitions, because they just correspond to the operations in which
+// they occur, so basically don't tell us anything about the failure that caller doesn't already know.
 #[derive(Error, Debug)]
 pub enum CpmError {
     #[error("Failed to ping the CPM.")]

@@ -5,4 +5,4 @@
 //! the Confidential Package (.cpk) file format.
 
 pub mod cpm;
-
+pub mod keys;
