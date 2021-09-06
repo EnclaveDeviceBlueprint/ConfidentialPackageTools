@@ -13,4 +13,4 @@
 
 pub mod frame;
 pub mod manifest;
-
+pub mod error;
