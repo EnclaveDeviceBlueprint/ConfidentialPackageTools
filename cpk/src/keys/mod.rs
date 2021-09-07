@@ -8,6 +8,7 @@
 pub mod cpm;
 pub mod error;
 pub mod http;
+pub mod local;
 pub mod parsec;
 
 /// Convenient result alias for this module, where errors are of type [KeyError].
