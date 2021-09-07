@@ -1,3 +1,6 @@
+// Copyright 2021 Contributors to the Confidential Packaging project.
+// SPDX-License-Identifier: MIT
+
 //! Common variables.
 
 /// The project name from Cargo.

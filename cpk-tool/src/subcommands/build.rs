@@ -1,3 +1,6 @@
+// Copyright 2021 Contributors to the Confidential Packaging project.
+// SPDX-License-Identifier: MIT
+
 //! Builds a confidential package from a compiled application binary and
 //! a given set of inputs to control signing and encryption.
 

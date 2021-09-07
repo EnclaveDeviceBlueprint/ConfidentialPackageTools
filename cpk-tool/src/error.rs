@@ -1,3 +1,6 @@
+// Copyright 2021 Contributors to the Confidential Packaging project.
+// SPDX-License-Identifier: MIT
+
 //! Error definitions/handling.
 
 use thiserror::Error;
@@ -12,10 +15,6 @@ pub enum Error {
     /// Error emanating from the cpk-tool itself.
     #[error(transparent)]
     ToolError(#[from] ToolErrorKind),
-
-    /// Error emanating from the base64 crate.
-    #[error(transparent)]
-    Base64DecodeError(#[from] base64::DecodeError),
 }
 
 /// Errors originating in the cpk-tool itself.

@@ -1,3 +1,6 @@
+// Copyright 2021 Contributors to the Confidential Packaging project.
+// SPDX-License-Identifier: MIT
+
 //! Installs a confidential package on the host system from the given
 //! input file.
 
@@ -9,7 +12,7 @@ use structopt::StructOpt;
 pub struct Install {
     /// The input file, which must be a binary confidential package file.
     #[structopt(short = "p", long = "package")]
-    output_file: String,
+    package_path: String,
 }
 
 impl Install {

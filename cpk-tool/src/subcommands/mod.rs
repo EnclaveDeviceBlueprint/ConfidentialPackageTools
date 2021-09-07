@@ -1,3 +1,6 @@
+// Copyright 2021 Contributors to the Confidential Packaging project.
+// SPDX-License-Identifier: MIT
+
 //! Individual commands supported by cpk-tool.
 
 //! Subcommand implementations.

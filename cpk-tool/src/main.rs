@@ -1,3 +1,6 @@
+// Copyright 2021 Contributors to the Confidential Packaging project.
+// SPDX-License-Identifier: MIT
+
 //! cpk-tool: a tool for building and installing confidential packages
 
 use log::error;
