@@ -21,6 +21,10 @@ pub enum KeyError {
     #[error(transparent)]
     Asn1Error(#[from] picky_asn1_der::Asn1DerError),
     
+    /// Error emanating from the parsec_client crate.
+    #[error(transparent)]
+    ParsecClientError(#[from] parsec_client::error::Error),
+    
     /// Unknown error.
     #[error("An error occurred for which no further information is available.")]
     Unknown,

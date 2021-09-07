@@ -6,9 +6,9 @@
 //! sub-modules implement these traits in some useful ways.
 
 pub mod cpm;
+pub mod error;
 pub mod http;
 pub mod parsec;
-pub mod error;
 
 /// Convenient result alias for this module, where errors are of type [KeyError].
 pub type Result<T> = std::result::Result<T, error::KeyError>;
@@ -19,6 +19,10 @@ pub trait EncryptionKeySource {
 
 pub trait EncryptionKeyDestination {
     fn unwrap(&self, key_id: &String, wrapped: &Vec<u8>) -> Result<()>;
+}
+
+pub trait EncryptionKeyExposure {
+    fn expose(&self, wrapped: &Vec<u8>) -> Result<Vec<u8>>;
 }
 
 pub trait WrappingKeySource {
