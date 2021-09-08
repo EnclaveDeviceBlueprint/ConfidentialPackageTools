@@ -85,10 +85,11 @@ impl ConfidentialPackageManager {
                 0,
                 std::ptr::null_mut(),
                 0,
-                &mut enclave_ptr
+                &mut enclave_ptr,
             );
         };
 
+        // TODO - we are not handling failure here. Probably need to return Result().
         ConfidentialPackageManager {
             enclave: enclave_ptr,
         }

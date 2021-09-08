@@ -9,6 +9,7 @@ use super::MAGIC;
 use crate::package::error::{Error, PackageErrorKind};
 use crate::package::Result;
 use serde::{Deserialize, Serialize};
+use std::convert::TryFrom;
 use std::io::{Read, Seek, SeekFrom};
 
 /// The fixed header makes up the first 16 bytes of a confidential package (.cpk) file. The fixed header is
@@ -155,7 +156,7 @@ impl Frame {
         };
 
         // Read the stream table
-        for _i in 1..fhdr.num_streams {
+        for _i in 0..fhdr.num_streams {
             let mut entry_bytes = [0_u8; std::mem::size_of::<StreamTableEntry>()];
             stream.read_exact(&mut entry_bytes)?;
 
@@ -200,10 +201,10 @@ impl Frame {
     ///
     /// This method is convenient to use for small streams, such as those that contain the manifest or small
     /// data items such as digests, signatures and certificates.
-    pub fn read_whole_stream<R: Read + Seek>(
+    pub fn read_whole_stream_into_buffer<R: Read + Seek>(
         &self,
         stream_index: u16,
-        stream: &mut R,
+        source: &mut R,
         buffer: &mut [u8],
     ) -> Result<()> {
         if stream_index < self.header.num_streams {
@@ -213,8 +214,8 @@ impl Frame {
             if sz == buffer.len() as u64 {
                 // We were given the correct size of buffer, so seek to the offset relative to the origin,
                 // and read from the data source into the buffer.
-                let _pos = stream.seek(SeekFrom::Start(origin + offset))?;
-                stream.read_exact(buffer)?;
+                let _pos = source.seek(SeekFrom::Start(origin + offset))?;
+                source.read_exact(buffer)?;
                 Ok(())
             } else {
                 Err(Error::PackageError(PackageErrorKind::BufferSizeIncorrect))
@@ -224,13 +225,46 @@ impl Frame {
         }
     }
 
-    /// Special case of [read_whole_stream] that specifically reads the manifest stream, and therefore does
-    /// not require a stream index to be passed in.
-    pub fn read_whole_manifest_stream<R: Read + Seek>(
+    /// Reads the entire contents of the stream with the given index from the given readable/seekable source,
+    /// and places the bytes into the given vector (resizing the vector as needed).
+    ///
+    /// This method is convenient to use for small streams, such as those that contain the manifest or small
+    /// data items such as digests, signatures and certificates.
+    pub fn read_whole_stream_into_vec<R: Read + Seek>(
         &self,
-        stream: &mut R,
+        stream_index: u16,
+        source: &mut R,
+        destination: &mut Vec<u8>,
+    ) -> Result<()> {
+        if stream_index < self.header.num_streams {
+            let sz = self.get_stream_size(stream_index)?;
+            let sz_usize = usize::try_from(sz)
+                .map_err(|_e| Error::PackageError(PackageErrorKind::StreamTooLarge))?;
+            destination.resize(sz_usize, 0); // TODO: Sanity check, maximum size?
+            self.read_whole_stream_into_buffer(stream_index, source, destination.as_mut_slice())?;
+            Ok(())
+        } else {
+            Err(Error::PackageError(PackageErrorKind::StreamIndexOutOfRange))
+        }
+    }
+
+    /// Special case of [read_whole_stream_into_buffer] that specifically reads the manifest stream, and therefore does
+    /// not require a stream index to be passed in.
+    pub fn read_whole_manifest_stream_into_buffer<R: Read + Seek>(
+        &self,
+        source: &mut R,
         buffer: &mut [u8],
     ) -> Result<()> {
-        self.read_whole_stream(self.header.manifest_stream, stream, buffer)
+        self.read_whole_stream_into_buffer(self.header.manifest_stream, source, buffer)
+    }
+
+    /// Special case of [read_whole_stream_into_vec] that specifically reads the manifest stream, and therefore does
+    /// not require a stream index to be passed in.
+    pub fn read_whole_manifest_stream_into_vec<R: Read + Seek>(
+        &self,
+        source: &mut R,
+        destination: &mut Vec<u8>,
+    ) -> Result<()> {
+        self.read_whole_stream_into_vec(self.header.manifest_stream, source, destination)
     }
 }

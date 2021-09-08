@@ -23,3 +23,6 @@ path = "src/lib.rs"
 
 [[bin]]
 name = "cpk-tool"
+
+[features]
+cpm-simulator = [ "cpk/cpm-simulator" ]

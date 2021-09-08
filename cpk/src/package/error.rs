@@ -63,4 +63,7 @@ pub enum PackageErrorKind {
 
     #[error("The given data buffer is the wrong size to hold the bytes of a stream exactly.")]
     BufferSizeIncorrect,
+
+    #[error("The given data stream is too large to be loaded into memory.")]
+    StreamTooLarge,
 }
