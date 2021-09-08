@@ -40,6 +40,15 @@ pub struct WebContractKeySource {
     endpoint_uri: String,
 }
 
+impl WebContractKeySource {
+    /// Makes a [WebContractKeySource] from the given endpoint URI.
+    pub fn from_endpoint_uri(endpoint_uri: &String) -> WebContractKeySource {
+        WebContractKeySource {
+            endpoint_uri: endpoint_uri.clone(),
+        }
+    }
+}
+
 impl EncryptionKeySource for WebContractKeySource {
     fn wrap(&self, key_id: &String, public_key: &Vec<u8>) -> Result<Vec<u8>> {
         let rsa_public_key: RsaPublicKey = picky_asn1_der::from_bytes(&public_key)?;

@@ -36,6 +36,26 @@ pub enum ToolErrorKind {
     /// Operation not supported by the cpk-tool
     #[error("Operation not supported by the cpk-tool")]
     NotSupported,
+
+    /// This occurs when the confidential package has been built with an encryption scheme that is
+    /// not recognised or supported by the tool.
+    #[error("Unsupported payload encryption scheme")]
+    UnsupportedEncryptionScheme,
+
+    /// This occurs when the confidential package digest is using an unrecognised or unsupported
+    /// hashing algorithm.
+    #[error("Unsupported digest scheme")]
+    UnsupportedDigestScheme,
+
+    /// This occurs when the confidential package has been signed using an unrecognised or
+    /// unsupported signature algorithm.
+    #[error("Unsupported signature scheme")]
+    UnsupportedSignatureScheme,
+
+    /// This occurs when the confidential application is using an unsupported method of providing the
+    /// public key certificate for digital signature verification.
+    #[error("Unsupported certification scheme")]
+    UnsupportedCertificationScheme,
 }
 
 /// A Result type with the Err variant set as a ToolError
