@@ -7,3 +7,7 @@
 //! file to enable further processing.
 
 pub mod v1;
+
+// This crate only supports v1 package manifests at the moment, so just publish all the v1 types through
+// this module.
+pub use v1::*;

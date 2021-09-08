@@ -3,6 +3,8 @@
 
 //! This module implements Version 1 of the manifest JSON document.
 
+use crate::package::Result;
+
 use serde::{Deserialize, Serialize};
 
 /// Defines the encryption scheme (algorithm and key strength) for a section of the package. Currently, only
@@ -141,12 +143,27 @@ pub struct Version {
     pub date: String,
 }
 
+/// This structure describes the intended target deployment environment for the compiled application in
+/// the payload, including the intended processor architecture and operating system.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct Target {
+    /// The processor architecture for which this application was compiled. (TODO: define strings).
+    pub arch: String,
+
+    /// The target operating system. (TODO: define strings).
+    pub os: String,
+}
+
 /// This structure describes the payload, which is the confidential application binary itself.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Payload {
     /// Stream index to the binary data for the compiled application.
     pub data: u16,
+
+    /// This section describes the target architecture and operating system for the application.
+    pub target: Target,
 
     /// This section collects the version and revision/patch level information for the application.
     pub ver: Version,
@@ -166,19 +183,19 @@ pub struct Payload {
 
 /// This structure describes the overall package, along with any additional signing or certification
 /// mechanism.
-/// 
+///
 /// Confidential packages allow for the possibility that the payload (application) might be signed separately
 /// from the overall package, and possibly even by a different entity with a different certificate.
-/// 
+///
 /// Signing details for the application payload are provided in the [Payload] section of the manifest.
-/// 
+///
 /// If the whole package is signed, then this section should be used to understand how to check and
 /// verify the signature.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Package {
     /// This section describes which of the package's data streams have been signed, and in what order.
-    /// 
+    ///
     /// Each member of this vector is a zero-based stream index, which must refer to one of the data
     /// streams (possibly including the manifest stream). The vector must not contain duplicates, but
     /// it can be in an arbitrary order. To verify the hash and signature, the consumer must process all
@@ -199,7 +216,7 @@ pub struct Package {
 /// The root level of the manifest document.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-pub struct Root {
+pub struct Manifest {
     /// The unique identity of this confidential package. (A UUID in string form).
     pub cp_id: String,
 
@@ -215,4 +232,12 @@ pub struct Root {
     /// This section provides signing details for the overall package, if the package has been signed separately
     /// from the payload.
     pub package: Package,
+}
+
+impl Manifest {
+    /// Construct and return the parsed manifest document from the given byte slice.
+    pub fn from_bytes(bytes: &[u8]) -> Result<Manifest> {
+        let manifest: Manifest = serde_json::from_slice(bytes)?;
+        Ok(manifest)
+    }
 }

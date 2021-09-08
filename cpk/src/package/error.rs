@@ -15,6 +15,11 @@ pub enum Error {
     #[error(transparent)]
     IoError(#[from] std::io::Error),
 
+    /// Error coming from the serde_json crate, which can happen when a manifest JSON
+    /// document is improperly formed.
+    #[error(transparent)]
+    JsonError(#[from] serde_json::Error),
+
     /// This kind of error represents a malformation of the package frame or manifest.
     #[error(transparent)]
     PackageError(#[from] PackageErrorKind),
@@ -47,9 +52,15 @@ pub enum PackageErrorKind {
     #[error("The package manifest stream index is out of range.")]
     ManifestStreamOutOfRange,
 
+    #[error("The given stream index is out of range.")]
+    StreamIndexOutOfRange,
+
     #[error("Invalid manifest type.")]
     InvalidManifestType,
 
     #[error("Invalid manifest version.")]
     InvalidManifestVersion,
+
+    #[error("The given data buffer is the wrong size to hold the bytes of a stream exactly.")]
+    BufferSizeIncorrect,
 }

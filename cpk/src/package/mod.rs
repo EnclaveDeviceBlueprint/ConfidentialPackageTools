@@ -14,3 +14,6 @@
 pub mod frame;
 pub mod manifest;
 pub mod error;
+
+/// Convenient result alias for this module.
+pub type Result<T> = std::result::Result<T, error::Error>;
