@@ -7,9 +7,10 @@
 
 mod build;
 mod install;
+mod sync;
 
-use crate::subcommands::{build::Build, install::Install};
 use crate::error::Result;
+use crate::subcommands::{build::Build, install::Install, sync::Sync};
 
 use structopt::StructOpt;
 
@@ -22,6 +23,9 @@ pub enum Subcommand {
 
     /// Installs a confidential package on the host system from a given input file.
     Install(Install),
+
+    /// Synchronizes an application class key into the Confidential Package Manager
+    Sync(Sync),
 }
 
 impl Subcommand {
@@ -30,6 +34,7 @@ impl Subcommand {
         match &self {
             Subcommand::Build(cmd) => cmd.run(),
             Subcommand::Install(cmd) => cmd.run(),
+            Subcommand::Sync(cmd) => cmd.run(),
         }
     }
 }
