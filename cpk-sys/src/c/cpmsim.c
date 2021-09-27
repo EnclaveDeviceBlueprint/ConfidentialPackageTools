@@ -44,14 +44,6 @@ static unsigned char public_key[PSA_KEY_EXPORT_RSA_PUBLIC_KEY_MAX_SIZE(KEY_STREN
 // This length is the length of the public key data in bytes (not to be confused with key strength)
 static size_t public_key_length;
 
-/* These store the data and size for the application key (id 73), which is injected by the host.
-   The simulator only has "room" for one such key, and in PSA it will have the id 73. We can't handle
-   the injection of multiple keys and installations at the same time. */
-static uint8_t unwrapped_key[256] = {0};
-
-/* This is initialized to zero, and also set back to zero when the caller finalizes the operation. */
-static size_t unwrapped_key_length = 0;
-
 // Handle up to 1Mb of encrypted application data by allocating it statically.
 // (Larger sizes could be handled by malloc/free, but this is only a simulator)
 #define MAX_APPLICATION_DATA (1 * 1024 * 1024)
@@ -241,10 +233,13 @@ oe_result_t ecall_install_application_key(
     if (ensure_key() == PSA_SUCCESS)
     {
         psa_status_t status;
+        psa_key_attributes_t key_attributes = PSA_KEY_ATTRIBUTES_INIT;
+        mbedtls_svc_key_id_t key_id_confirmed;
+        uint8_t unwrapped_key[256] = {0};
+        size_t unwrapped_key_length = 0;
         
         /* We need to decrypt ("unwrap") the application key data first, using the private part of the RSA
            key pair. */
-
         status =  psa_asymmetric_decrypt(key_pair_id,
                                          PSA_ALG_RSA_PKCS1V15_CRYPT,
                                          data,
@@ -261,6 +256,45 @@ oe_result_t ecall_install_application_key(
             return 0;
         }
 
+        /* Import the unwrapped key as 'application_key_id' (73), specifying AES key type and GCM
+           algorithm. The simulator only supports AES256-GCM, so we can hard-code attributes at this
+           point despite the fact that the initialization function hasn't been called yet. */
+        psa_set_key_id(&key_attributes, application_key_id);
+        psa_set_key_lifetime(&key_attributes, PSA_KEY_LIFETIME_PERSISTENT);
+        psa_set_key_usage_flags(&key_attributes, PSA_KEY_USAGE_ENCRYPT | PSA_KEY_USAGE_DECRYPT);
+        psa_set_key_algorithm(&key_attributes, PSA_ALG_GCM);
+        psa_set_key_type(&key_attributes, PSA_KEY_TYPE_AES);
+        psa_set_key_bits(&key_attributes, 256);
+
+        status = psa_import_key(&key_attributes,
+                                unwrapped_key,
+                                unwrapped_key_length,
+                                &key_id_confirmed);
+
+        if (status == PSA_ERROR_ALREADY_EXISTS)
+        {
+            // A previous run of the simulator already accepted the key, so destroy it and try
+            // again.
+            (void) psa_destroy_key(application_key_id);
+
+            status = psa_import_key(&key_attributes,
+                                    unwrapped_key,
+                                    unwrapped_key_length,
+                                    &key_id_confirmed);
+        }
+
+        if (status != PSA_SUCCESS)
+        {
+            *_retval = 1;
+            return 0;
+        }
+
+        if (key_id_confirmed != application_key_id)
+        {
+            /* Better check that PSA has adopted the correct persistent id for this key. */
+            *_retval = 1;
+            return 0;
+        }
         *_retval = 0;
     }
     else
@@ -299,70 +333,25 @@ oe_result_t ecall_initialize_decryption_aes_gcm(
     UNUSED(enclave);
     UNUSED(application_id);
 
-    if (unwrapped_key_length == 0)
+    if (key_strength != 256)
     {
-        /* We have no key to decrypt with. */
+        /* We have already assumed AES256, so bail if we get anything different here. */
         *_retval = 1;
         return 0;
     }
-    else
+
+    if ((size_t) iv_size > MAX_NONCE || (size_t) tag_size > MAX_TAG)
     {
-        psa_status_t status;
-        psa_key_attributes_t key_attributes = PSA_KEY_ATTRIBUTES_INIT;
-        mbedtls_svc_key_id_t key_id_confirmed;
-
-        /* Import the unwrapped key as 'application_key_id' (73), specifying AES key type and GCM
-           algorithm. */
-        psa_set_key_id(&key_attributes, application_key_id);
-        psa_set_key_lifetime(&key_attributes, PSA_KEY_LIFETIME_PERSISTENT);
-        psa_set_key_usage_flags(&key_attributes, PSA_KEY_USAGE_ENCRYPT | PSA_KEY_USAGE_DECRYPT);
-        psa_set_key_algorithm(&key_attributes, PSA_ALG_GCM);
-        psa_set_key_type(&key_attributes, PSA_KEY_TYPE_AES);
-        psa_set_key_bits(&key_attributes, key_strength);
-
-        status = psa_import_key(&key_attributes,
-                                unwrapped_key,
-                                unwrapped_key_length,
-                                &key_id_confirmed);
-
-        if (status == PSA_ERROR_ALREADY_EXISTS)
-        {
-            // This might happen if a previous run failed halfway through and left the application
-            // key behind. For robustness, try and delete the key and then have another go.
-            (void) psa_destroy_key(application_key_id);
-
-            status = psa_import_key(&key_attributes,
-                                    unwrapped_key,
-                                    unwrapped_key_length,
-                                    &key_id_confirmed);
-        }
-
-        if (status != PSA_SUCCESS)
-        {
-            *_retval = 1;
-            return 0;
-        }
-
-        if (key_id_confirmed != application_key_id)
-        {
-            /* Better check that PSA has adopted the correct persistent id for this key. */
-            *_retval = 1;
-            return 0;
-        }
-
-        if ((size_t) iv_size > MAX_NONCE || (size_t) tag_size > MAX_TAG)
-        {
-            /* If the nonce or tag are too big for local in-memory storage, fail. */
-            *_retval = 1;
-            return 0;
-        }
-
-        /* Just copy the nonce/IV and auth tag to local in-memory storage. */
-        memcpy(gcm_nonce, iv, iv_size);
-        gcm_nonce_size = iv_size;
-        memcpy(gcm_auth_tag, tag, tag_size);
-        gcm_auth_tag_size = tag_size;
+        /* If the nonce or tag are too big for local in-memory storage, fail. */
+        *_retval = 1;
+        return 0;
     }
+
+    /* Just copy the nonce/IV and auth tag to local in-memory storage. */
+    memcpy(gcm_nonce, iv, iv_size);
+    gcm_nonce_size = iv_size;
+    memcpy(gcm_auth_tag, tag, tag_size);
+    gcm_auth_tag_size = tag_size;
 
     return 0;
 }
@@ -549,18 +538,12 @@ oe_result_t ecall_end_application_deployment(
     UNUSED(enclave);
     UNUSED(application_id);
 
-    /* Destroy the application key (id = 73), so that a new one can be created with the same id if we
-       go around again. */
-    (void) psa_destroy_key(application_key_id);
-
     /* Clear all per-application bits. */
     memset(application_ciphertext, 0, sizeof(application_ciphertext));
     memset(application_plaintext, 0, sizeof(application_plaintext));
     memset(gcm_nonce, 0, sizeof(gcm_nonce));
     memset(gcm_auth_tag, 0, sizeof(gcm_auth_tag));
-    memset(unwrapped_key, 0, sizeof(unwrapped_key));
 
-    unwrapped_key_length = 0;
     gcm_nonce_size = 0;
     gcm_auth_tag_size = 0;
     ciphertext_size = 0;
