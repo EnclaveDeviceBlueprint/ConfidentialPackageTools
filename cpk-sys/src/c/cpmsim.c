@@ -312,11 +312,19 @@ oe_result_t ecall_begin_application_deployment(
     char* application_id,
     unsigned long int total_data_size)
 {
-    /* Nothing meaningful to do here in the simulator. */
     UNUSED(enclave);
     UNUSED(application_id);
     UNUSED(total_data_size);
-    *_retval = 0;
+
+    /* Make sure we call ensure_key() so that PSA Crypto is initialized. */
+    if (ensure_key() == PSA_SUCCESS)
+    {
+        *_retval = 0;
+    }
+    else
+    {
+        *_retval = 1; /* TODO: Map PSA error to REE/TEE interface code, TBD */
+    }
     return 0;
 }
 
