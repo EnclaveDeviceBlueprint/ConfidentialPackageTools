@@ -56,6 +56,16 @@ pub enum ToolErrorKind {
     /// public key certificate for digital signature verification.
     #[error("Unsupported certification scheme")]
     UnsupportedCertificationScheme,
+
+    /// Invalid `method` argument passed to the `sync` command. The sync method must be either
+    /// `http` or `azuretwin`.
+    #[error("Invalid method given for the sync command")]
+    InvalidSyncMethod,
+
+    /// There is some missing configuration for a command, such as a required environment variable or
+    /// configuration file/option.
+    #[error("Missing configuration")]
+    MissingConfiguration,
 }
 
 /// A Result type with the Err variant set as a ToolError

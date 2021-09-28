@@ -6,8 +6,6 @@
 
 use crate::error::{Error, Result, ToolErrorKind};
 use cpk::cpm::ConfidentialPackageManager;
-use cpk::keys::http::WebContractKeySource;
-use cpk::keys::EncryptionKeySource;
 use cpk::package::frame::Frame;
 use cpk::package::manifest::{
     CertificationScheme, DigestScheme, EncryptionScheme, Manifest, SigningScheme,
@@ -141,14 +139,10 @@ impl ConfidentialPackage {
     }
 
     /// Installs the package into the CPM or CPM simulator (depending on cargo feature settings).
-    fn install_to<T: EncryptionKeySource>(
+    fn install_to(
         &self,
         cpm: &ConfidentialPackageManager,
-        key_source: &T,
     ) -> Result<()> {
-        let wrapping_key = cpm.get_device_public_key()?;
-        let wrapped_key = key_source.wrap(&self.encryption_key_name, &wrapping_key)?;
-        cpm.install_application_key(&self.application_id, &wrapped_key)?;
         cpm.begin_application_deployment(
             &self.application_id,
             self.encrypted_payload.len().try_into().unwrap(),
@@ -257,11 +251,7 @@ fn simple_install_from_file(filepath: &String) -> Result<()> {
     let _pingres = cpm.ping()?;
 
     println!("Installing...");
-    let cloud_key_source_endpoint = std::env::var("CP_CLOUD_KEY_SOURCE")
-        .expect("Set the CP_CLOUD_KEY_SOURCE environment variable to something like https://<my-app>.azurewebsites.net/api/WrapKey?code=<ACCESS_CODE>");
-
-    let key_source = WebContractKeySource::from_endpoint_uri(&cloud_key_source_endpoint);
-    package.install_to(&cpm, &key_source)?;
+    package.install_to(&cpm)?;
 
     println!("Verifying...");
     let (dig_check, sig_check) = package.verify_in(&cpm)?;
