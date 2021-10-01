@@ -36,4 +36,5 @@
 pub mod cli;
 pub mod common;
 pub mod error;
+pub mod prototype;
 pub mod subcommands;
