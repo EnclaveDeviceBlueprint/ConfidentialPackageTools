@@ -25,6 +25,10 @@ pub enum Error {
     #[error(transparent)]
     KeySharingError(#[from] cpk::keys::error::KeyError),
 
+    /// Errors relating to JSON processing.
+    #[error(transparent)]
+    JsonError(#[from] serde_json::Error),
+
     /// Error emanating from the cpk-tool itself.
     #[error(transparent)]
     ToolError(#[from] ToolErrorKind),

@@ -5,12 +5,14 @@
 
 use crate::error::{Error, Result, ToolErrorKind};
 use cpk::cpm::ConfidentialPackageManager;
-use cpk::package::frame::Frame;
+use cpk::package::frame::{Frame, MAGIC};
 use cpk::package::manifest::{
-    CertificationScheme, DigestScheme, EncryptionScheme, Manifest, SigningScheme,
+    CertificationScheme, DigestScheme, EncryptionScheme, Manifest, Package, Payload, SigningScheme,
+    Target, Version,
 };
 use std::convert::TryInto;
 use std::fs::File;
+use std::io::Write;
 use x509_parser::parse_x509_certificate;
 use x509_parser::pem::parse_x509_pem;
 
@@ -22,6 +24,12 @@ pub struct ConfidentialPackage {
     /// The identity of the application being installed, which is also the lookup used by the CPM to map the
     /// application to its correct encryption key.
     application_id: String,
+
+    /// The human-readable name of the application.
+    application_name: String,
+
+    /// The application's vendor description.
+    vendor: String,
 
     /// The AES-GCM encrypted payload to be installed.
     encrypted_payload: Vec<u8>,
@@ -54,9 +62,15 @@ pub struct ConfidentialPackage {
 impl ConfidentialPackage {
     /// Creates an "empty" confidential package model, ready to be populated with content from the package
     /// frame, guided by the manifest.
-    fn new(application_id: &String) -> ConfidentialPackage {
+    fn new(
+        application_id: &String,
+        application_name: &String,
+        vendor: &String,
+    ) -> ConfidentialPackage {
         ConfidentialPackage {
             application_id: application_id.clone(),
+            application_name: application_name.clone(),
+            vendor: vendor.clone(),
             encrypted_payload: Vec::new(),
             encryption_key_strength: 0,
             encryption_key_name: String::from(""),
@@ -75,7 +89,8 @@ impl ConfidentialPackage {
         frame: &Frame,
         manifest: &Manifest,
     ) -> Result<ConfidentialPackage> {
-        let mut package = ConfidentialPackage::new(&manifest.cp_id);
+        let mut package =
+            ConfidentialPackage::new(&manifest.cp_id, &manifest.cp_name, &manifest.cp_vendor);
 
         // Get the main data stream - the encrypted package.
         frame.read_whole_stream_into_vec(
@@ -130,10 +145,7 @@ impl ConfidentialPackage {
     }
 
     /// Installs the package into the CPM or CPM simulator (depending on cargo feature settings).
-    pub fn install_to(
-        &self,
-        cpm: &ConfidentialPackageManager,
-    ) -> Result<()> {
+    pub fn install_to(&self, cpm: &ConfidentialPackageManager) -> Result<()> {
         cpm.begin_application_deployment(
             &self.application_id,
             self.encrypted_payload.len().try_into().unwrap(),
@@ -176,5 +188,100 @@ impl ConfidentialPackage {
         cpm.end_application_deployment(&self.application_id)?;
 
         Ok((dig_check, sig_check))
+    }
+
+    /// Forms the complete manifest document from the modelled content. This function is used when
+    /// writing new packages out to disk, having built the data model from its various component parts
+    /// internally.
+    pub fn get_manifest(&self) -> Manifest {
+        Manifest {
+            cp_id: self.application_id.clone(),
+            cp_name: self.application_name.clone(),
+            cp_vendor: self.vendor.clone(),
+            payload: Payload {
+                data: 0,
+                // Hard-coded target for now.
+                target: Target {
+                    arch: String::from("aarch64"),
+                    os: String::from("OP-TEE"),
+                },
+                // Hard-coded dummy version data for now.
+                ver: Version {
+                    maj: 1,
+                    min: 0,
+                    rev: 0,
+                    date: chrono::Utc::now().to_string(),
+                },
+                enc: EncryptionScheme::AesGcm {
+                    key_name: String::from(self.application_id.clone()),
+                    key_strength: 256,
+                    nonce: 1,
+                    tag: 2,
+                },
+                dig: DigestScheme::Sha256 { data: 3 },
+                sig: SigningScheme::RsaPkcs1v15 {
+                    key_strength: 2048,
+                    data: 4,
+                },
+                cert: CertificationScheme::EmbeddedX509Pem { data: 5 },
+            },
+            package: Package {
+                map: vec![0, 1, 2, 3, 4, 5, 6],
+                dig: DigestScheme::None,
+                sig: SigningScheme::None,
+                cert: CertificationScheme::None,
+            },
+        }
+    }
+
+    /// Outputs the entire Confidential Package file to the given write stream.
+    pub fn write_to_stream<S: Write>(&self, stream: &mut S) -> Result<()> {
+        // Derive the manifest stream
+        let manifest = self.get_manifest();
+        let manifest_string = serde_json::to_string(&manifest)?;
+        let manifest_bytes = manifest_string.as_bytes();
+
+        // Write the fixed header
+        stream.write_all(&MAGIC.to_le_bytes())?; // Magic number
+        stream.write_all(&1u16.to_le_bytes())?; // Version
+        stream.write_all(&0u16.to_le_bytes())?; // Flag (unused)
+        stream.write_all(&7u16.to_le_bytes())?; // Number of streams (data, nonce, tag, digest, signature, cert, manifest)
+        stream.write_all(&6u16.to_le_bytes())?; // 0-based index of the manifest stream - the final stream
+        stream.write_all(&1u16.to_le_bytes())?; // Manifest "type" (currently not used, but designed for flexibility)
+        stream.write_all(&1u16.to_le_bytes())?; // Manifest version
+
+        // Write the stream table
+        let mut cursor: u64 = 0;
+        stream.write_all(&cursor.to_le_bytes())?;
+        stream.write_all(&(self.encrypted_payload.len() as u64).to_le_bytes())?;
+        cursor += self.encrypted_payload.len() as u64;
+        stream.write_all(&cursor.to_le_bytes())?;
+        stream.write_all(&(self.nonce.len() as u64).to_le_bytes())?;
+        cursor += self.nonce.len() as u64;
+        stream.write_all(&cursor.to_le_bytes())?;
+        stream.write_all(&(self.tag.len() as u64).to_le_bytes())?;
+        cursor += self.tag.len() as u64;
+        stream.write_all(&cursor.to_le_bytes())?;
+        stream.write_all(&(self.digest.len() as u64).to_le_bytes())?;
+        cursor += self.digest.len() as u64;
+        stream.write_all(&cursor.to_le_bytes())?;
+        stream.write_all(&(self.signature.len() as u64).to_le_bytes())?;
+        cursor += self.signature.len() as u64;
+        stream.write_all(&cursor.to_le_bytes())?;
+        stream.write_all(&(self.cert.len() as u64).to_le_bytes())?;
+        cursor += self.cert.len() as u64;
+        stream.write_all(&cursor.to_le_bytes())?;
+        stream.write_all(&(manifest_bytes.len() as u64).to_le_bytes())?;
+
+        // Write the streams
+        stream.write_all(&self.encrypted_payload)?;
+        stream.write_all(&self.nonce)?;
+        stream.write_all(&self.tag)?;
+        stream.write_all(&self.digest)?;
+        stream.write_all(&self.signature)?;
+        stream.write_all(&self.cert)?;
+        stream.write_all(&manifest_bytes)?;
+
+        Ok(())
     }
 }
