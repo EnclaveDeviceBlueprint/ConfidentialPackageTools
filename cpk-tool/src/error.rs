@@ -29,6 +29,10 @@ pub enum Error {
     #[error(transparent)]
     JsonError(#[from] serde_json::Error),
 
+    /// Errors related to RSA operations
+    #[error(transparent)]
+    RsaError(#[from] rsa::errors::Error),
+    
     /// Error emanating from the cpk-tool itself.
     #[error(transparent)]
     ToolError(#[from] ToolErrorKind),

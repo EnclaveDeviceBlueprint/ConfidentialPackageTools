@@ -83,6 +83,40 @@ impl ConfidentialPackage {
         }
     }
 
+    /// Builds a confidential package model from a pre-prepared set of encrypted input and other
+    /// component parts.
+    ///
+    /// Input is assumed to be AES-256 in GCM mode with the given nonce and tag.
+    ///
+    /// Digest is assumed to be SHA-256.
+    ///
+    /// Signature is assumed to be RSA-2048 PKCS1 v1.5.
+    ///
+    /// Certificate is assumed to be X509 in PEM format.
+    pub fn build_from_encrypted_input(
+        application_id: &String,
+        application_name: &String,
+        vendor: &String,
+        encrypted_payload: &mut Vec<u8>,
+        nonce: &[u8],
+        tag: &[u8],
+        digest: &[u8],
+        signature: &mut Vec<u8>,
+        cert: &[u8],
+    ) -> ConfidentialPackage {
+        let mut package = ConfidentialPackage::new(application_id, application_name, vendor);
+        package.encrypted_payload.append(encrypted_payload);
+        package.encryption_key_strength = 256;
+        package.encryption_key_name = application_id.clone();
+        package.nonce.extend_from_slice(nonce);
+        package.tag.extend_from_slice(tag);
+        package.digest.extend_from_slice(digest);
+        package.signature.append(signature);
+        package.signature_key_strength = 2048;
+        package.cert.extend_from_slice(cert);
+        package
+    }
+
     /// Populates the model from the package frame, guided by the directives in the manifest.
     pub fn build_from_frame_and_manifest(
         file: &mut File,
