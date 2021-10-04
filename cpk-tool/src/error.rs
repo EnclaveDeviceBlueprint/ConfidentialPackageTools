@@ -32,7 +32,7 @@ pub enum Error {
     /// Errors related to RSA operations
     #[error(transparent)]
     RsaError(#[from] rsa::errors::Error),
-    
+
     /// Error emanating from the cpk-tool itself.
     #[error(transparent)]
     ToolError(#[from] ToolErrorKind),
@@ -74,6 +74,19 @@ pub enum ToolErrorKind {
     /// configuration file/option.
     #[error("Missing configuration")]
     MissingConfiguration,
+
+    /// Invalid encryption key source/method specified. Currently, encryption keys need to come from a web
+    /// front-end to a key vault ("http"), or from a local file on disk ("file").
+    #[error("Invalid encryption key source")]
+    InvalidEncryptionKeySource,
+
+    /// Invalid wrapping key source specified.
+    ///
+    /// Wrapping keys are used to wrap the encryption key when it is retrieved from the key store. Wrapping
+    /// keys can come from the CPM (as is always the case when synchronizing keys), or they can come
+    /// from either Parsec or just local memory (when building confidential packages).
+    #[error("Invalid wrapping key source")]
+    InvalidWrappingKeySource,
 }
 
 /// A Result type with the Err variant set as a ToolError
