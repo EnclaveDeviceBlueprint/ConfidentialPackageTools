@@ -7,6 +7,7 @@
 use crate::error::{Error, Result, ToolErrorKind};
 
 use cpk::cpm::ConfidentialPackageManager;
+use cpk::keys::file::FileKeySource;
 use cpk::keys::http::WebContractKeySource;
 use cpk::keys::EncryptionKeySource;
 
@@ -15,9 +16,8 @@ use structopt::StructOpt;
 /// Models the options required by the sync command.
 #[derive(Debug, StructOpt)]
 pub struct Sync {
-    /// The synchronization method to use, either "http" or "azuretwin" (although only "http"
-    /// is implemented currently).
-    #[structopt(short = "m", long = "method")]
+    /// The synchronization method to use, either "http", "file" or "azuretwin".
+    #[structopt(short = "m", long = "key-method")]
     method: String,
 
     /// The identity of the application whose class key needs to be synchronized. This would
@@ -25,17 +25,47 @@ pub struct Sync {
     #[structopt(short = "a", long = "application-id")]
     application_id: String,
 
-    /// The key wrapping endpoint to use when synchronizing with the "http" method. This must
-    /// be a pre-authenticated HTTP URL. If this option is not specified, then it will be obtained
-    /// from the `CP_CLOUD_KEY_SOURCE` environment variable instead.
-    #[structopt(short = "e", long = "http-endpoint")]
-    http_endpoint: Option<String>,
+    /// The address of the key store. This argument is optional, and it's interpretation depends
+    /// on the synchronization method.
+    ///
+    /// When the synchronization method is `http`, this argument should be the URL
+    /// of an API endpoint that implements the Confidential Package Key Wrapping protocol. If it is
+    /// omitted from the command-line, then this URL will be read from the
+    /// `CP_CLOUD_KEY_SOURCE` environment variable instead. If it is not specified there either, then the
+    /// command will fail.
+    ///
+    /// When the synchronization method is `file`, this argument should be the path to an existing
+    /// file on disk, containing the key data in JSON format. File-based key stores are intended for
+    /// local test environments only. If this argument is omitted from the command-line, it will
+    /// be resolved from the CP_FILE_KEY_SOURCE environment variable instead. If it is not specified
+    /// there either, then the command will fail.
+    ///
+    /// When the synchronization method is `azuretwin`, this argument is currently unused, because all
+    /// configuration is read from environment variables.
+    #[structopt(short = "k", long = "key-store")]
+    key_store: Option<String>,
 }
 
 impl Sync {
+    /// Synchronizes the key into the CPM from any given key source.
+    fn sync_using_key_source<K: EncryptionKeySource>(
+        &self,
+        keysource: &K,
+        cpm: &ConfidentialPackageManager,
+    ) -> Result<()> {
+        println!("Getting the device public key...");
+        let device_public = cpm.get_device_public_key()?;
+        println!("Getting the wrapped key from the key store...");
+        let wrapped = keysource.wrap(&self.application_id, &device_public)?;
+        println!("Unwrapping...");
+        cpm.install_application_key(&self.application_id, &wrapped)?;
+        println!("Done.");
+        Ok(())
+    }
+
     /// Implements the command for the HTTP (WebContract) sync method.
     fn sync_using_http(&self, cpm: &ConfidentialPackageManager) -> Result<()> {
-        let endpoint = match &self.http_endpoint {
+        let endpoint = match &self.key_store {
             Some(e) => e.clone(),
             None => {
                 // The endpoint isn't on the command-line, so examine the environment variable instead
@@ -51,20 +81,36 @@ impl Sync {
 
         let keysource = WebContractKeySource::from_endpoint_uri(&endpoint);
 
-        println!("Getting the device public key...");
-        let device_public = cpm.get_device_public_key()?;
-        println!("Getting the wrapped key from the endpoint...");
-        let wrapped = keysource.wrap(&self.application_id, &device_public)?;
-        println!("Unwrapping...");
-        cpm.install_application_key(&self.application_id, &wrapped)?;
-
-        Ok(())
+        self.sync_using_key_source(&keysource, cpm)
     }
 
     /// Implements the command for the Azure device twin sync method (not supported yet).
     fn sync_using_azure_twin(&self, _cpm: &ConfidentialPackageManager) -> Result<()> {
-        println!("Key synchronization via Azure device twin not yet supported. Please use `http`.");
+        println!("Key synchronization via Azure device twin not yet supported. Please use `http` or `file`.");
         Err(Error::ToolError(ToolErrorKind::NotSupported))
+    }
+
+    /// Implements the command for a key store based in a file on the local file system.
+    fn sync_using_file(&self, cpm: &ConfidentialPackageManager) -> Result<()> {
+        // Echo a warning so that users are clear that this is only for local test environments.
+        println!("WARNING: File-based key stores should only be used in local test environments.");
+        let filepath = match &self.key_store {
+            Some(p) => p.clone(),
+            None => {
+                // The file path isn't on the command-line, so examine the environment variable instead
+                let env = std::env::var("CP_FILE_KEY_SOURCE");
+                if env.is_err() {
+                    // The file path hasn't been specified on the command-line or in the environment variable.
+                    println!("No key store file path specified. Please specify by setting the `CP_FILE_KEY_SOURCE` environment variable.");
+                    return Err(Error::ToolError(ToolErrorKind::MissingConfiguration));
+                }
+                env.unwrap()
+            }
+        };
+
+        let keysource = FileKeySource::from_file_path(&filepath)?;
+
+        self.sync_using_key_source(&keysource, cpm)
     }
 
     /// Synchronizes the class key for a given application identity from its cloud-based key source
@@ -75,6 +121,7 @@ impl Sync {
         let _pingres = cpm.ping()?;
         match self.method.as_str() {
             "http" => self.sync_using_http(&cpm),
+            "file" => self.sync_using_file(&cpm),
             "azuretwin" => self.sync_using_azure_twin(&cpm),
             _ => {
                 println!(
