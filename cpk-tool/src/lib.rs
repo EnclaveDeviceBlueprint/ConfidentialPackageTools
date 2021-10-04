@@ -38,3 +38,4 @@ pub mod common;
 pub mod error;
 pub mod prototype;
 pub mod subcommands;
+pub mod util;

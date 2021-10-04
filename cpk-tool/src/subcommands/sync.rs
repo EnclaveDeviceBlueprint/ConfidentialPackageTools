@@ -6,6 +6,8 @@
 
 use crate::error::{Error, Result, ToolErrorKind};
 
+use crate::util::get_config_from_command_or_env;
+
 use cpk::cpm::ConfidentialPackageManager;
 use cpk::keys::file::FileKeySource;
 use cpk::keys::http::WebContractKeySource;
@@ -65,19 +67,7 @@ impl Sync {
 
     /// Implements the command for the HTTP (WebContract) sync method.
     fn sync_using_http(&self, cpm: &ConfidentialPackageManager) -> Result<()> {
-        let endpoint = match &self.key_store {
-            Some(e) => e.clone(),
-            None => {
-                // The endpoint isn't on the command-line, so examine the environment variable instead
-                let env = std::env::var("CP_CLOUD_KEY_SOURCE");
-                if env.is_err() {
-                    // The endpoint hasn't been specified on the command-line or in the environment variable.
-                    println!("No HTTP endpoint found for sync. Please specify by setting the `CP_CLOUD_KEY_SOURCE` environment variable.");
-                    return Err(Error::ToolError(ToolErrorKind::MissingConfiguration));
-                }
-                env.unwrap()
-            }
-        };
+        let endpoint = get_config_from_command_or_env(&self.key_store, "CP_CLOUD_KEY_SOURCE", "HTTP key store endpoint")?;
 
         let keysource = WebContractKeySource::from_endpoint_uri(&endpoint);
 
@@ -94,19 +84,7 @@ impl Sync {
     fn sync_using_file(&self, cpm: &ConfidentialPackageManager) -> Result<()> {
         // Echo a warning so that users are clear that this is only for local test environments.
         println!("WARNING: File-based key stores should only be used in local test environments.");
-        let filepath = match &self.key_store {
-            Some(p) => p.clone(),
-            None => {
-                // The file path isn't on the command-line, so examine the environment variable instead
-                let env = std::env::var("CP_FILE_KEY_SOURCE");
-                if env.is_err() {
-                    // The file path hasn't been specified on the command-line or in the environment variable.
-                    println!("No key store file path specified. Please specify by setting the `CP_FILE_KEY_SOURCE` environment variable.");
-                    return Err(Error::ToolError(ToolErrorKind::MissingConfiguration));
-                }
-                env.unwrap()
-            }
-        };
+        let filepath = get_config_from_command_or_env(&self.key_store, "CP_FILE_KEY_SOURCE", "key store file path")?;
 
         let keysource = FileKeySource::from_file_path(&filepath)?;
 
