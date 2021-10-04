@@ -7,6 +7,7 @@
 
 pub mod cpm;
 pub mod error;
+pub mod file;
 pub mod http;
 pub mod local;
 pub mod parsec;
