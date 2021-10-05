@@ -174,7 +174,7 @@ there is no need to substitute or change anything:
 `````
 
 This command will display a warning about the RSA wrapping key, but this is benign for a quick test
-- just ignore it!
+and it can safely be ignored.
 
 The output file `my_first_confidential_package.cpk` should have been created in the working
 directory. The `cpk` file extension is conventionally used to denote a confidential package file.
