@@ -268,3 +268,135 @@ impl Frame {
         self.read_whole_stream_into_vec(self.header.manifest_stream, source, destination)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::io::{Cursor, Write};
+
+    use super::Frame;
+    use crate::package::frame::MAGIC;
+    use crate::package::Result;
+
+    const STREAM_0: &[u8] = b"Is this a dagger I see before me?";
+    const STREAM_1: &[u8] = b"The handle toward my hand?";
+    const STREAM_2: &[u8] = b"Come, let me clutch thee!";
+    const STREAM_3: &[u8] = b"I have thee not, yet I see thee still.";
+    const STREAM_4: &[u8] = b"{}";
+
+    fn populate_valid_test_frame(frame: &mut Vec<u8>) -> Result<()> {
+        // Write the fixed header
+        frame.write_all(&MAGIC.to_le_bytes())?; // Magic number
+        frame.write_all(&1u16.to_le_bytes())?; // Version
+        frame.write_all(&0u16.to_le_bytes())?; // Flag (unused)
+        frame.write_all(&5u16.to_le_bytes())?; // Number of streams
+        frame.write_all(&4u16.to_le_bytes())?; // 0-based index of the manifest stream - the final stream
+        frame.write_all(&1u16.to_le_bytes())?; // Manifest "type" (currently not used, but designed for flexibility)
+        frame.write_all(&1u16.to_le_bytes())?; // Manifest version
+
+        // Write the stream table
+        let mut cursor: u64 = 0;
+        frame.write_all(&cursor.to_le_bytes())?;
+        frame.write_all(&(STREAM_0.len() as u64).to_le_bytes())?;
+        cursor += STREAM_0.len() as u64;
+        frame.write_all(&cursor.to_le_bytes())?;
+        frame.write_all(&(STREAM_1.len() as u64).to_le_bytes())?;
+        cursor += STREAM_1.len() as u64;
+        frame.write_all(&cursor.to_le_bytes())?;
+        frame.write_all(&(STREAM_2.len() as u64).to_le_bytes())?;
+        cursor += STREAM_2.len() as u64;
+        frame.write_all(&cursor.to_le_bytes())?;
+        frame.write_all(&(STREAM_3.len() as u64).to_le_bytes())?;
+        cursor += STREAM_3.len() as u64;
+        frame.write_all(&cursor.to_le_bytes())?;
+        frame.write_all(&(STREAM_4.len() as u64).to_le_bytes())?;
+
+        // Write the streams
+        frame.write_all(&STREAM_0)?;
+        frame.write_all(&STREAM_1)?;
+        frame.write_all(&STREAM_2)?;
+        frame.write_all(&STREAM_3)?;
+        frame.write_all(&STREAM_4)?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_read_header_fields() {
+        let mut stream: Vec<u8> = Vec::new();
+        populate_valid_test_frame(&mut stream).unwrap();
+        let frame = Frame::read_from_stream(&mut stream.as_slice()).unwrap();
+
+        assert_eq!(frame.header.magic, MAGIC);
+        assert_eq!(frame.header.frame_version, 1);
+        assert_eq!(frame.header.flag, 0);
+        assert_eq!(frame.header.num_streams, 5);
+        assert_eq!(frame.header.manifest_stream, 4);
+        assert_eq!(frame.header.manifest_type, 1);
+        assert_eq!(frame.header.manifest_version, 1);
+    }
+
+    #[test]
+    fn test_read_stream_sizes() {
+        let mut stream: Vec<u8> = Vec::new();
+        populate_valid_test_frame(&mut stream).unwrap();
+        let frame = Frame::read_from_stream(&mut stream.as_slice()).unwrap();
+
+        assert_eq!(frame.get_stream_size(0).unwrap(), STREAM_0.len() as u64);
+        assert_eq!(frame.get_stream_size(1).unwrap(), STREAM_1.len() as u64);
+        assert_eq!(frame.get_stream_size(2).unwrap(), STREAM_2.len() as u64);
+        assert_eq!(frame.get_stream_size(3).unwrap(), STREAM_3.len() as u64);
+        assert_eq!(frame.get_stream_size(4).unwrap(), STREAM_4.len() as u64);
+    }
+
+    #[test]
+    fn test_read_stream_offsets() {
+        let mut stream: Vec<u8> = Vec::new();
+        populate_valid_test_frame(&mut stream).unwrap();
+        let frame = Frame::read_from_stream(&mut stream.as_slice()).unwrap();
+
+        let mut expected: u64 = 0;
+        assert_eq!(frame.get_stream_offset(0).unwrap(), expected);
+        expected += STREAM_0.len() as u64;
+        assert_eq!(frame.get_stream_offset(1).unwrap(), expected);
+        expected += STREAM_1.len() as u64;
+        assert_eq!(frame.get_stream_offset(2).unwrap(), expected);
+        expected += STREAM_2.len() as u64;
+        assert_eq!(frame.get_stream_offset(3).unwrap(), expected);
+        expected += STREAM_3.len() as u64;
+        assert_eq!(frame.get_stream_offset(4).unwrap(), expected);
+    }
+
+    #[test]
+    fn test_read_stream_contents() {
+        let mut stream: Vec<u8> = Vec::new();
+        populate_valid_test_frame(&mut stream).unwrap();
+        let frame = Frame::read_from_stream(&mut stream.as_slice()).unwrap();
+
+        let mut cursor = Cursor::new(stream);
+
+        let mut str0 : Vec<u8> = Vec::new();
+        frame.read_whole_stream_into_vec(0, &mut cursor, &mut str0).unwrap();
+        assert_eq!(str0.len(), STREAM_0.len());
+        assert_eq!(str0.as_slice(), STREAM_0);
+
+        let mut str1 : Vec<u8> = Vec::new();
+        frame.read_whole_stream_into_vec(1, &mut cursor, &mut str1).unwrap();
+        assert_eq!(str1.len(), STREAM_1.len());
+        assert_eq!(str1.as_slice(), STREAM_1);
+
+        let mut str2 : Vec<u8> = Vec::new();
+        frame.read_whole_stream_into_vec(2, &mut cursor, &mut str2).unwrap();
+        assert_eq!(str2.len(), STREAM_2.len());
+        assert_eq!(str2.as_slice(), STREAM_2);
+
+        let mut str3 : Vec<u8> = Vec::new();
+        frame.read_whole_stream_into_vec(3, &mut cursor, &mut str3).unwrap();
+        assert_eq!(str3.len(), STREAM_3.len());
+        assert_eq!(str3.as_slice(), STREAM_3);
+
+        let mut str4 : Vec<u8> = Vec::new();
+        frame.read_whole_stream_into_vec(4, &mut cursor, &mut str4).unwrap();
+        assert_eq!(str4.len(), STREAM_4.len());
+        assert_eq!(str4.as_slice(), STREAM_4);
+    }
+}

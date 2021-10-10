@@ -29,11 +29,11 @@ use std::io::BufReader;
 ///
 /// An example file containing just a single key might look like this:
 ///
-/// `````
+/// ```ignore
 /// {
 ///     "5d286b7e-ff68-4b4b-b7b8-05f55dbfd0c7" : "QfTjWnZr4u7x!A%D*G-KaPdRgUkXp2s5"
 /// }
-/// `````
+/// ```
 ///
 /// File key sources are immutable. The contents need to have been created separately by an admin.
 /// This tool is not able to add, remove or modify keys within the store.

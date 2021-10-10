@@ -57,11 +57,11 @@ pub trait EncryptionKeySource {
     /// The public key is currently required to be an RSA public key in PKCS#1 DER format,
     /// defined as per [RFC3279](https://datatracker.ietf.org/doc/html/rfc3279):
     /// 
-    /// `````
+    /// ```ignore
     /// RSAPublicKey ::= SEQUENCE {
     ///           modulus        INTEGER,
     ///           publicExponent INTEGER }
-    /// `````
+    /// ```
     /// 
     /// The public key would normally have been obtained from a suitable [WrappingKeySource],
     /// which will return a key in the correct format.
@@ -127,11 +127,11 @@ pub trait WrappingKeySource {
     /// The public key is currently required to be an RSA public key in PKCS#1 DER format,
     /// defined as per [RFC3279](https://datatracker.ietf.org/doc/html/rfc3279):
     /// 
-    /// `````
+    /// ```ignore
     /// RSAPublicKey ::= SEQUENCE {
     ///           modulus        INTEGER,
     ///           publicExponent INTEGER }
-    /// `````
+    /// ```
     /// 
     /// The public key returned by this function can be passed directly to [EncryptionKeySource::wrap].
     fn get_public(&self) -> Result<Vec<u8>>;
@@ -156,10 +156,10 @@ pub trait WrappingKeyDestination {
     /// The public key is currently required to be an RSA public key in PKCS#1 DER format,
     /// defined as per [RFC3279](https://datatracker.ietf.org/doc/html/rfc3279):
     /// 
-    /// `````
+    /// ```ignore
     /// RSAPublicKey ::= SEQUENCE {
     ///           modulus        INTEGER,
     ///           publicExponent INTEGER }
-    /// `````
+    /// ```
     fn publish_public(&self, wrapping_key: &Vec<u8>) -> Result<()>;
 }
