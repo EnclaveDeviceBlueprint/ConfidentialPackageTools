@@ -49,6 +49,7 @@ static size_t public_key_length;
 #define MAX_APPLICATION_DATA (1 * 1024 * 1024)
 #define MAX_TAG 256
 #define MAX_NONCE 256
+#define MAX_FILENAME_SIZE 256
 
 /* In-memory static storage for the application data. We only support one chunk, and it can't be any bigger
    than MAX_APPLICATION_DATA */
@@ -60,6 +61,9 @@ static uint8_t gcm_auth_tag[MAX_TAG] = {0};
 static size_t gcm_auth_tag_size = 0;
 static uint8_t gcm_nonce[MAX_NONCE] = {0};
 static size_t gcm_nonce_size = 0;
+
+/* Suffix used when writing output files to disk. */
+static const char *FILE_SUFFIX = ".out";
 
 static psa_status_t ensure_key()
 {
@@ -544,7 +548,23 @@ oe_result_t ecall_end_application_deployment(
     char* application_id)
 {
     UNUSED(enclave);
-    UNUSED(application_id);
+
+    /* Emulate the installation process by writing the plaintext data to disk.
+       Obviously the real CPM would never do this, but it allows the emulator to be used to
+       test the round-trip. Make sure that the plaintext is non-zero and that the application
+       id can be transformed into a suitable filename. */
+    if (plaintext_size > 0 && ((strlen(application_id) + strlen(FILE_SUFFIX) + 1) < MAX_FILENAME_SIZE))
+    {
+        char filename[MAX_FILENAME_SIZE] = { 0 };
+        FILE *f;
+        (void) snprintf(filename, MAX_FILENAME_SIZE, "%s%s", application_id, FILE_SUFFIX);
+        f = fopen(filename, "w");
+        if (f != NULL)
+        {
+            fwrite(application_plaintext, 1, plaintext_size, f);
+            fclose(f);
+        }
+    }
 
     /* Clear all per-application bits. */
     memset(application_ciphertext, 0, sizeof(application_ciphertext));
