@@ -32,7 +32,7 @@ pub enum Error {
 /// These error variants refer to errors that are raised directly by code in the package module
 /// and its submodules, as opposed to errors that are simply being re-badged from underlying subsystems
 /// such as I/O.
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq)]
 pub enum PackageErrorKind {
     #[error("The package does not begin with the correct 4-byte magic number.")]
     MagicNumberMissing,

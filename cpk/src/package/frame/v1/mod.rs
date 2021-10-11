@@ -274,6 +274,7 @@ mod tests {
     use std::io::{Cursor, Write};
 
     use super::Frame;
+    use crate::package::error::{Error, PackageErrorKind};
     use crate::package::frame::MAGIC;
     use crate::package::Result;
 
@@ -374,29 +375,268 @@ mod tests {
 
         let mut cursor = Cursor::new(stream);
 
-        let mut str0 : Vec<u8> = Vec::new();
-        frame.read_whole_stream_into_vec(0, &mut cursor, &mut str0).unwrap();
+        let mut str0: Vec<u8> = Vec::new();
+        frame
+            .read_whole_stream_into_vec(0, &mut cursor, &mut str0)
+            .unwrap();
         assert_eq!(str0.len(), STREAM_0.len());
         assert_eq!(str0.as_slice(), STREAM_0);
 
-        let mut str1 : Vec<u8> = Vec::new();
-        frame.read_whole_stream_into_vec(1, &mut cursor, &mut str1).unwrap();
+        let mut str1: Vec<u8> = Vec::new();
+        frame
+            .read_whole_stream_into_vec(1, &mut cursor, &mut str1)
+            .unwrap();
         assert_eq!(str1.len(), STREAM_1.len());
         assert_eq!(str1.as_slice(), STREAM_1);
 
-        let mut str2 : Vec<u8> = Vec::new();
-        frame.read_whole_stream_into_vec(2, &mut cursor, &mut str2).unwrap();
+        let mut str2: Vec<u8> = Vec::new();
+        frame
+            .read_whole_stream_into_vec(2, &mut cursor, &mut str2)
+            .unwrap();
         assert_eq!(str2.len(), STREAM_2.len());
         assert_eq!(str2.as_slice(), STREAM_2);
 
-        let mut str3 : Vec<u8> = Vec::new();
-        frame.read_whole_stream_into_vec(3, &mut cursor, &mut str3).unwrap();
+        let mut str3: Vec<u8> = Vec::new();
+        frame
+            .read_whole_stream_into_vec(3, &mut cursor, &mut str3)
+            .unwrap();
         assert_eq!(str3.len(), STREAM_3.len());
         assert_eq!(str3.as_slice(), STREAM_3);
 
-        let mut str4 : Vec<u8> = Vec::new();
-        frame.read_whole_stream_into_vec(4, &mut cursor, &mut str4).unwrap();
+        let mut str4: Vec<u8> = Vec::new();
+        frame
+            .read_whole_stream_into_vec(4, &mut cursor, &mut str4)
+            .unwrap();
         assert_eq!(str4.len(), STREAM_4.len());
         assert_eq!(str4.as_slice(), STREAM_4);
+    }
+
+    #[test]
+    fn test_read_manifest_stream_contents() {
+        let mut stream: Vec<u8> = Vec::new();
+        populate_valid_test_frame(&mut stream).unwrap();
+        let frame = Frame::read_from_stream(&mut stream.as_slice()).unwrap();
+
+        let mut cursor = Cursor::new(stream);
+
+        let mut manifest: Vec<u8> = Vec::new();
+        frame
+            .read_whole_manifest_stream_into_vec(&mut cursor, &mut manifest)
+            .unwrap();
+        assert_eq!(manifest.len(), STREAM_4.len());
+        assert_eq!(manifest.as_slice(), STREAM_4);
+    }
+
+    #[test]
+    fn test_stream_size_index_out_of_range() {
+        let mut stream: Vec<u8> = Vec::new();
+        populate_valid_test_frame(&mut stream).unwrap();
+        let frame = Frame::read_from_stream(&mut stream.as_slice()).unwrap();
+        let err = frame.get_stream_size(5).unwrap_err();
+        match err {
+            Error::PackageError(kind) => assert_eq!(PackageErrorKind::StreamIndexOutOfRange, kind),
+            _ => panic!("Unexpected error type."),
+        }
+    }
+
+    #[test]
+    fn test_stream_offset_index_out_of_range() {
+        let mut stream: Vec<u8> = Vec::new();
+        populate_valid_test_frame(&mut stream).unwrap();
+        let frame = Frame::read_from_stream(&mut stream.as_slice()).unwrap();
+        let err = frame.get_stream_offset(5).unwrap_err();
+        match err {
+            Error::PackageError(kind) => assert_eq!(PackageErrorKind::StreamIndexOutOfRange, kind),
+            _ => panic!("Unexpected error type."),
+        }
+    }
+
+    #[test]
+    fn test_stream_contents_index_out_of_range() {
+        let mut stream: Vec<u8> = Vec::new();
+        populate_valid_test_frame(&mut stream).unwrap();
+        let frame = Frame::read_from_stream(&mut stream.as_slice()).unwrap();
+        let mut cursor = Cursor::new(stream);
+
+        let mut str5: Vec<u8> = Vec::new();
+        let err = frame
+            .read_whole_stream_into_vec(5, &mut cursor, &mut str5)
+            .unwrap_err();
+        match err {
+            Error::PackageError(kind) => assert_eq!(PackageErrorKind::StreamIndexOutOfRange, kind),
+            _ => panic!("Unexpected error type."),
+        }
+    }
+
+    #[test]
+    fn test_origin() {
+        let mut stream: Vec<u8> = Vec::new();
+        populate_valid_test_frame(&mut stream).unwrap();
+        let frame = Frame::read_from_stream(&mut stream.as_slice()).unwrap();
+        assert_eq!(96, frame.get_origin());
+    }
+
+    #[test]
+    fn test_invalid_header_magic() {
+        // Write the fixed header
+        let mut frame: Vec<u8> = Vec::new();
+        frame.write_all(&0u32.to_le_bytes()).unwrap(); // Magic number
+        frame.write_all(&1u16.to_le_bytes()).unwrap(); // Version
+        frame.write_all(&0u16.to_le_bytes()).unwrap(); // Flag (unused)
+        frame.write_all(&5u16.to_le_bytes()).unwrap(); // Number of streams
+        frame.write_all(&4u16.to_le_bytes()).unwrap(); // 0-based index of the manifest stream - the final stream
+        frame.write_all(&1u16.to_le_bytes()).unwrap(); // Manifest "type" (currently not used, but designed for flexibility)
+        frame.write_all(&1u16.to_le_bytes()).unwrap(); // Manifest version
+
+        let err = Frame::read_from_stream(&mut frame.as_slice()).unwrap_err();
+
+        match err {
+            Error::PackageError(kind) => assert_eq!(PackageErrorKind::MagicNumberMissing, kind),
+            _ => panic!("Unexpected error type."),
+        }
+    }
+
+    #[test]
+    fn test_invalid_header_version_zero() {
+        // Write the fixed header
+        let mut frame: Vec<u8> = Vec::new();
+        frame.write_all(&MAGIC.to_le_bytes()).unwrap(); // Magic number
+        frame.write_all(&0u16.to_le_bytes()).unwrap(); // Version
+        frame.write_all(&0u16.to_le_bytes()).unwrap(); // Flag (unused)
+        frame.write_all(&5u16.to_le_bytes()).unwrap(); // Number of streams
+        frame.write_all(&4u16.to_le_bytes()).unwrap(); // 0-based index of the manifest stream - the final stream
+        frame.write_all(&1u16.to_le_bytes()).unwrap(); // Manifest "type" (currently not used, but designed for flexibility)
+        frame.write_all(&1u16.to_le_bytes()).unwrap(); // Manifest version
+
+        let err = Frame::read_from_stream(&mut frame.as_slice()).unwrap_err();
+
+        match err {
+            Error::PackageError(kind) => assert_eq!(PackageErrorKind::PackageVersionMissing, kind),
+            _ => panic!("Unexpected error type."),
+        }
+    }
+
+    #[test]
+    fn test_invalid_header_version_unsupported() {
+        // Write the fixed header
+        let mut frame: Vec<u8> = Vec::new();
+        frame.write_all(&MAGIC.to_le_bytes()).unwrap(); // Magic number
+        frame.write_all(&2u16.to_le_bytes()).unwrap(); // Version
+        frame.write_all(&0u16.to_le_bytes()).unwrap(); // Flag (unused)
+        frame.write_all(&5u16.to_le_bytes()).unwrap(); // Number of streams
+        frame.write_all(&4u16.to_le_bytes()).unwrap(); // 0-based index of the manifest stream - the final stream
+        frame.write_all(&1u16.to_le_bytes()).unwrap(); // Manifest "type" (currently not used, but designed for flexibility)
+        frame.write_all(&1u16.to_le_bytes()).unwrap(); // Manifest version
+
+        let err = Frame::read_from_stream(&mut frame.as_slice()).unwrap_err();
+
+        match err {
+            Error::PackageError(kind) => {
+                assert_eq!(PackageErrorKind::PackageVersionNotSupported, kind)
+            }
+            _ => panic!("Unexpected error type."),
+        }
+    }
+
+    #[test]
+    fn test_invalid_header_flag() {
+        // Write the fixed header
+        let mut frame: Vec<u8> = Vec::new();
+        frame.write_all(&MAGIC.to_le_bytes()).unwrap(); // Magic number
+        frame.write_all(&1u16.to_le_bytes()).unwrap(); // Version
+        frame.write_all(&1u16.to_le_bytes()).unwrap(); // Flag (unused)
+        frame.write_all(&5u16.to_le_bytes()).unwrap(); // Number of streams
+        frame.write_all(&4u16.to_le_bytes()).unwrap(); // 0-based index of the manifest stream - the final stream
+        frame.write_all(&1u16.to_le_bytes()).unwrap(); // Manifest "type" (currently not used, but designed for flexibility)
+        frame.write_all(&1u16.to_le_bytes()).unwrap(); // Manifest version
+
+        let err = Frame::read_from_stream(&mut frame.as_slice()).unwrap_err();
+
+        match err {
+            Error::PackageError(kind) => assert_eq!(PackageErrorKind::InvalidFlag, kind),
+            _ => panic!("Unexpected error type."),
+        }
+    }
+
+    #[test]
+    fn test_invalid_header_stream_count_zero() {
+        // Write the fixed header
+        let mut frame: Vec<u8> = Vec::new();
+        frame.write_all(&MAGIC.to_le_bytes()).unwrap(); // Magic number
+        frame.write_all(&1u16.to_le_bytes()).unwrap(); // Version
+        frame.write_all(&0u16.to_le_bytes()).unwrap(); // Flag (unused)
+        frame.write_all(&0u16.to_le_bytes()).unwrap(); // Number of streams
+        frame.write_all(&4u16.to_le_bytes()).unwrap(); // 0-based index of the manifest stream - the final stream
+        frame.write_all(&1u16.to_le_bytes()).unwrap(); // Manifest "type" (currently not used, but designed for flexibility)
+        frame.write_all(&1u16.to_le_bytes()).unwrap(); // Manifest version
+
+        let err = Frame::read_from_stream(&mut frame.as_slice()).unwrap_err();
+
+        match err {
+            Error::PackageError(kind) => assert_eq!(PackageErrorKind::StreamCountZero, kind),
+            _ => panic!("Unexpected error type."),
+        }
+    }
+
+    #[test]
+    fn test_invalid_header_manifest_stream_out_of_range() {
+        // Write the fixed header
+        let mut frame: Vec<u8> = Vec::new();
+        frame.write_all(&MAGIC.to_le_bytes()).unwrap(); // Magic number
+        frame.write_all(&1u16.to_le_bytes()).unwrap(); // Version
+        frame.write_all(&0u16.to_le_bytes()).unwrap(); // Flag (unused)
+        frame.write_all(&5u16.to_le_bytes()).unwrap(); // Number of streams
+        frame.write_all(&5u16.to_le_bytes()).unwrap(); // 0-based index of the manifest stream - the final stream
+        frame.write_all(&1u16.to_le_bytes()).unwrap(); // Manifest "type" (currently not used, but designed for flexibility)
+        frame.write_all(&1u16.to_le_bytes()).unwrap(); // Manifest version
+
+        let err = Frame::read_from_stream(&mut frame.as_slice()).unwrap_err();
+
+        match err {
+            Error::PackageError(kind) => {
+                assert_eq!(PackageErrorKind::ManifestStreamOutOfRange, kind)
+            }
+            _ => panic!("Unexpected error type."),
+        }
+    }
+
+    #[test]
+    fn test_invalid_header_manifest_type_unsupported() {
+        // Write the fixed header
+        let mut frame: Vec<u8> = Vec::new();
+        frame.write_all(&MAGIC.to_le_bytes()).unwrap(); // Magic number
+        frame.write_all(&1u16.to_le_bytes()).unwrap(); // Version
+        frame.write_all(&0u16.to_le_bytes()).unwrap(); // Flag (unused)
+        frame.write_all(&5u16.to_le_bytes()).unwrap(); // Number of streams
+        frame.write_all(&4u16.to_le_bytes()).unwrap(); // 0-based index of the manifest stream - the final stream
+        frame.write_all(&0u16.to_le_bytes()).unwrap(); // Manifest "type" (currently not used, but designed for flexibility)
+        frame.write_all(&1u16.to_le_bytes()).unwrap(); // Manifest version
+
+        let err = Frame::read_from_stream(&mut frame.as_slice()).unwrap_err();
+
+        match err {
+            Error::PackageError(kind) => assert_eq!(PackageErrorKind::InvalidManifestType, kind),
+            _ => panic!("Unexpected error type."),
+        }
+    }
+
+    #[test]
+    fn test_invalid_header_manifest_version_unsupported() {
+        // Write the fixed header
+        let mut frame: Vec<u8> = Vec::new();
+        frame.write_all(&MAGIC.to_le_bytes()).unwrap(); // Magic number
+        frame.write_all(&1u16.to_le_bytes()).unwrap(); // Version
+        frame.write_all(&0u16.to_le_bytes()).unwrap(); // Flag (unused)
+        frame.write_all(&5u16.to_le_bytes()).unwrap(); // Number of streams
+        frame.write_all(&4u16.to_le_bytes()).unwrap(); // 0-based index of the manifest stream - the final stream
+        frame.write_all(&1u16.to_le_bytes()).unwrap(); // Manifest "type" (currently not used, but designed for flexibility)
+        frame.write_all(&2u16.to_le_bytes()).unwrap(); // Manifest version
+
+        let err = Frame::read_from_stream(&mut frame.as_slice()).unwrap_err();
+
+        match err {
+            Error::PackageError(kind) => assert_eq!(PackageErrorKind::InvalidManifestVersion, kind),
+            _ => panic!("Unexpected error type."),
+        }
     }
 }
