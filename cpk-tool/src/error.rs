@@ -14,6 +14,7 @@ pub enum Error {
 
     /// Errors resulting from failing calls to the Confidential Package Manager (CPM).
     #[error(transparent)]
+    #[cfg(any(feature = "sync", feature = "install"))]
     CpmError(#[from] cpk::cpm::CpmError),
 
     /// Errors coming from the package file processing, due to the package being unreadable or
@@ -23,6 +24,7 @@ pub enum Error {
 
     /// Errors relating to the wrapping or distribution of encryption keys.
     #[error(transparent)]
+    #[cfg(any(feature = "sync", feature = "build"))]
     KeySharingError(#[from] cpk::keys::error::KeyError),
 
     /// Errors relating to JSON processing.

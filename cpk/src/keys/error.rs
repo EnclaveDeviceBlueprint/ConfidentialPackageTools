@@ -10,6 +10,7 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum KeyError {
     #[error(transparent)]
+    #[cfg(feature = "cpm")]
     CpmKeyManagementError(#[from] crate::cpm::CpmError),
 
     #[error(transparent)]

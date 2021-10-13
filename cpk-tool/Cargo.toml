@@ -33,7 +33,7 @@ name = "cpk-tool"
 
 [features]
 default = [ "build", "install", "sync" ]
-build = [ "ring" ]
-sync = []
-install = []
+build = [ "ring", "cpk/key-management" ]
+sync = [ "cpk/cpm", "cpk/key-management" ]
+install = [ "cpk/cpm" ]
 cpm-simulator = [ "cpk/cpm-simulator" ]
