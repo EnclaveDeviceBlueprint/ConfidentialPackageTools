@@ -14,6 +14,9 @@
 //! fall within the boundaries of those restrictions. It is also able to build simple packages from
 //! a given payload, subject to those same simplifications and restrictions.
 
+#[cfg(feature = "build")]
 pub mod builder;
+#[cfg(feature = "install")]
 pub mod installer;
+#[cfg(any(feature = "build", feature = "install"))]
 pub mod package;

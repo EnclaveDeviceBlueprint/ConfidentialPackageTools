@@ -3,17 +3,38 @@
 
 //! Prototype (proof-of-concept) implementation of a data model for confidential packages.
 
-use crate::error::{Error, Result, ToolErrorKind};
+use crate::error::Result;
+
+#[cfg(feature = "install")]
+use crate::error::{Error, ToolErrorKind};
+
+#[cfg(feature = "install")]
 use cpk::cpm::ConfidentialPackageManager;
-use cpk::package::frame::{Frame, MAGIC};
+
+#[cfg(feature = "build")]
+use cpk::package::frame::MAGIC;
+
+#[cfg(feature = "install")]
+use cpk::package::frame::Frame;
+
 use cpk::package::manifest::{
-    CertificationScheme, DigestScheme, EncryptionScheme, Manifest, Package, Payload, SigningScheme,
-    Target, Version,
+    CertificationScheme, DigestScheme, EncryptionScheme, Manifest, SigningScheme,
 };
+
+#[cfg(feature = "build")]
+use cpk::package::manifest::{Package, Payload, Target, Version};
+
+#[cfg(feature = "install")]
 use std::convert::TryInto;
+#[cfg(feature = "install")]
 use std::fs::File;
+
+#[cfg(feature = "build")]
 use std::io::Write;
+
+#[cfg(feature = "install")]
 use x509_parser::parse_x509_certificate;
+#[cfg(feature = "install")]
 use x509_parser::pem::parse_x509_pem;
 
 /// Very simple data model for the confidential package, as used by [installer::simple_install_from_file]. This structure
@@ -93,6 +114,7 @@ impl ConfidentialPackage {
     /// Signature is assumed to be RSA-2048 PKCS1 v1.5.
     ///
     /// Certificate is assumed to be X509 in PEM format.
+    #[cfg(feature = "build")]
     pub fn build_from_encrypted_input(
         application_id: &String,
         application_name: &String,
@@ -118,6 +140,7 @@ impl ConfidentialPackage {
     }
 
     /// Populates the model from the package frame, guided by the directives in the manifest.
+    #[cfg(feature = "install")]
     pub fn build_from_frame_and_manifest(
         file: &mut File,
         frame: &Frame,
@@ -179,6 +202,7 @@ impl ConfidentialPackage {
     }
 
     /// Installs the package into the CPM or CPM simulator (depending on cargo feature settings).
+    #[cfg(feature = "install")]
     pub fn install_to(&self, cpm: &ConfidentialPackageManager) -> Result<()> {
         cpm.begin_application_deployment(
             &self.application_id,
@@ -201,6 +225,7 @@ impl ConfidentialPackage {
     /// the second indicates whether the signature check passed. (If the first flag is false, then the
     /// second flag must also be false, because it would not be possible to even attempt the signature check
     /// if the digest is wrong).
+    #[cfg(feature = "install")]
     pub fn verify_in(&self, cpm: &ConfidentialPackageManager) -> Result<(bool, bool)> {
         // TODO: Not handling X509 parse errors here, but this code is temporary, pending deeper integration
         // of the installation process into the cpk crate.
@@ -227,6 +252,7 @@ impl ConfidentialPackage {
     /// Forms the complete manifest document from the modelled content. This function is used when
     /// writing new packages out to disk, having built the data model from its various component parts
     /// internally.
+    #[cfg(feature = "build")]
     pub fn get_manifest(&self) -> Manifest {
         Manifest {
             cp_id: self.application_id.clone(),
@@ -269,6 +295,7 @@ impl ConfidentialPackage {
     }
 
     /// Outputs the entire Confidential Package file to the given write stream.
+    #[cfg(feature = "build")]
     pub fn write_to_stream<S: Write>(&self, stream: &mut S) -> Result<()> {
         // Derive the manifest stream
         let manifest = self.get_manifest();
