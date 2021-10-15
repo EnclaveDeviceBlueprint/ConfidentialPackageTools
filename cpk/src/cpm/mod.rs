@@ -120,18 +120,13 @@ impl ConfidentialPackageManager {
 
         unsafe {
             let mut retval: ::std::os::raw::c_int = 0;
-            let mut is_supported: ::std::os::raw::c_int = 0;
 
             let oe_result =
-                ecall_is_operation_supported(self.enclave, &mut retval, ptr, &mut is_supported);
+                ecall_is_operation_supported(self.enclave, &mut retval, ptr, &mut supported);
 
             let _ = CString::from_raw(ptr);
             if (retval != 0) || (oe_result != 0) {
                 return Err(CpmError::IsOperationSupported);
-            }
-
-            if is_supported != 0 {
-                supported = true;
             }
         }
 
@@ -321,8 +316,6 @@ impl ConfidentialPackageManager {
 
         unsafe {
             let mut retval: ::std::os::raw::c_int = 0;
-            let mut digest_match: ::std::os::raw::c_int = 0;
-            let mut signature_match: ::std::os::raw::c_int = 0;
 
             let oe_result = ecall_verify_application_sha256_rsa_pkcs1_v15(
                 self.enclave,
@@ -335,22 +328,14 @@ impl ConfidentialPackageManager {
                 signature_clone.len() as ::std::os::raw::c_uint,
                 public_key_clone.as_mut_ptr(),
                 public_key_clone.len() as ::std::os::raw::c_uint,
-                &mut digest_match,
-                &mut signature_match,
+                &mut dig_result,
+                &mut sig_result,
             );
 
             let _ = CString::from_raw(ptr);
 
             if (retval != 0) || (oe_result != 0) {
                 return Err(CpmError::VerifySha256Pkcs1v15);
-            }
-
-            if digest_match != 0 {
-                dig_result = true;
-            }
-
-            if signature_match != 0 {
-                sig_result = true;
             }
         }
 

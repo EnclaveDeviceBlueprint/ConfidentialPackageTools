@@ -13,13 +13,13 @@
 
 /* MANUAL MODIFICATION: Include platform int definitions. */
 #include <stdint.h>
+#include <stdbool.h>
 
 /* MANUAL MODIFICATION: Hacky typedefs to avoid depending on OE */
 typedef int oe_enclave_type_t;
 typedef void oe_enclave_setting_t;
 typedef void oe_enclave_t;
 typedef int oe_result_t;
-typedef int bool;
 
 oe_result_t oe_create_ConfidentialPackageSpecification_enclave(
     const char* path,
