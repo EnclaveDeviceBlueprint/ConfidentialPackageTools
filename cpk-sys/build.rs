@@ -177,12 +177,9 @@ fn bind_to_cpm() -> Result<()> {
     println!("cargo:rustc-link-lib=oehost");
     println!("{}{}", "cargo:rustc-link-search=", oe_lib_dir);
 
-    // Pull in OPTEE Client library 
-    println!("cargo:rustc-link-lib=static=teec");
+    // Pull in OPTEE Client library
+    println!("cargo:rustc-link-lib=teec");
     println!("{}{}", "cargo:rustc-link-search=", opteec_dir);
-
-    println!("cargo:rustc-link-search=native={}/library", mbed_tls_path);
-    println!("cargo:rustc-link-lib=static=mbedcrypto");
     
     Ok(())
 }

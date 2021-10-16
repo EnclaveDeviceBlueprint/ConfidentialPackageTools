@@ -388,3 +388,10 @@ impl ConfidentialPackageManager {
         Ok(())
     }
 }
+
+
+#[no_mangle]
+pub fn ocall_log(msg: *mut ::std::os::raw::c_char) -> ::std::os::raw::c_int {
+    // TODO, output to somewhere
+    return 0;
+}
