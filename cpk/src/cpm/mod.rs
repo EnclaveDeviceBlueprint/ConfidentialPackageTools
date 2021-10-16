@@ -27,6 +27,17 @@ use cpk_sys::{
     ecall_install_application_key, ecall_is_operation_supported, ecall_ping,
     ecall_verify_application_sha256_rsa_pkcs1_v15,
     oe_create_ConfidentialPackageSpecification_enclave, oe_enclave_t,
+    optee_ConfidentialPackageManagerUUID_CPM_UUID_P0,
+    optee_ConfidentialPackageManagerUUID_CPM_UUID_P1,
+    optee_ConfidentialPackageManagerUUID_CPM_UUID_P2,
+    optee_ConfidentialPackageManagerUUID_CPM_UUID_P3,
+    optee_ConfidentialPackageManagerUUID_CPM_UUID_P4,
+    optee_ConfidentialPackageManagerUUID_CPM_UUID_P5,
+    optee_ConfidentialPackageManagerUUID_CPM_UUID_P6,
+    optee_ConfidentialPackageManagerUUID_CPM_UUID_P7,
+    optee_ConfidentialPackageManagerUUID_CPM_UUID_P8,
+    optee_ConfidentialPackageManagerUUID_CPM_UUID_P9,
+    optee_ConfidentialPackageManagerUUID_CPM_UUID_P10,
 };
 
 use std::ffi::CString;
@@ -77,12 +88,28 @@ impl ConfidentialPackageManager {
         let mut enclave_ptr: *mut oe_enclave_t = std::ptr::null_mut();
 
         unsafe {
-            // TODO: This will only work in the CPM simulator, where it is a dummy call that ignores
-            // all of the input arguments. Needs hooking up to the "real" CPM in the TEE.
+            // Assemble the UUD from the constants in the Specification
+            let UUID = format!("{:8X}-{:4X}-{:4X}-{:4X}-{:2X}{:2X}{:2X}{:2X}{:2X}{:2X}{:2X}", 
+                optee_ConfidentialPackageManagerUUID_CPM_UUID_P0,
+                optee_ConfidentialPackageManagerUUID_CPM_UUID_P1,
+                optee_ConfidentialPackageManagerUUID_CPM_UUID_P2,
+                optee_ConfidentialPackageManagerUUID_CPM_UUID_P3,
+                optee_ConfidentialPackageManagerUUID_CPM_UUID_P4,
+                optee_ConfidentialPackageManagerUUID_CPM_UUID_P5,
+                optee_ConfidentialPackageManagerUUID_CPM_UUID_P6,
+                optee_ConfidentialPackageManagerUUID_CPM_UUID_P7,
+                optee_ConfidentialPackageManagerUUID_CPM_UUID_P8,
+                optee_ConfidentialPackageManagerUUID_CPM_UUID_P9,
+                optee_ConfidentialPackageManagerUUID_CPM_UUID_P10,
+                );
+
+            let c_str = CString::new(UUID).unwrap();
+            let ptr = c_str.into_raw();
+
             let _oe_result = oe_create_ConfidentialPackageSpecification_enclave(
-                std::ptr::null_mut(),
-                0,
-                0,
+                ptr,
+                1,  //OE_ENCLAVE_TYPE_AUTO = 1,
+                0,  // flags
                 std::ptr::null_mut(),
                 0,
                 &mut enclave_ptr,
