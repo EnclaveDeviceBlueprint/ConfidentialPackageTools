@@ -89,7 +89,7 @@ impl ConfidentialPackageManager {
 
         unsafe {
             // Assemble the UUD from the constants in the Specification
-            let UUID = format!("{:8X}-{:4X}-{:4X}-{:4X}-{:2X}{:2X}{:2X}{:2X}{:2X}{:2X}{:2X}", 
+            let UUID = format!("{:08x}-{:04x}-{:04x}-{:02x}{:02x}-{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}", 
                 optee_ConfidentialPackageManagerUUID_CPM_UUID_P0,
                 optee_ConfidentialPackageManagerUUID_CPM_UUID_P1,
                 optee_ConfidentialPackageManagerUUID_CPM_UUID_P2,
@@ -389,9 +389,10 @@ impl ConfidentialPackageManager {
     }
 }
 
-
+#[cfg(not(feature = "cpm-simulator"))]
 #[no_mangle]
 pub fn ocall_log(msg: *mut ::std::os::raw::c_char) -> ::std::os::raw::c_int {
-    // TODO, output to somewhere
+    // TODO, output to somewhere more defined
+    println!("TA LOG: {:p}", msg);
     return 0;
 }
