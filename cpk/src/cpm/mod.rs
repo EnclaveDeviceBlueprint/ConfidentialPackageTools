@@ -390,9 +390,12 @@ impl ConfidentialPackageManager {
 }
 
 #[cfg(not(feature = "cpm-simulator"))]
+use std::ffi::CStr;
 #[no_mangle]
 pub fn ocall_log(msg: *mut ::std::os::raw::c_char) -> ::std::os::raw::c_int {
     // TODO, output to somewhere more defined
-    println!("TA LOG: {:p}", msg);
+    let rustMSG = unsafe { CStr::from_ptr(msg) };
+    let rustMSG = rustMSG.to_owned();
+    println!("TA LOG: {:?}", rustMSG);
     return 0;
 }
