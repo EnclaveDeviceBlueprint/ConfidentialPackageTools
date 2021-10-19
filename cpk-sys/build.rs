@@ -83,7 +83,7 @@ fn bind_to_cpm_simulator() -> Result<()> {
     // We need this because the simulator uses mbedcrypto in place of the TEE.
     println!("cargo:rustc-link-search=native={}/library", mbed_tls_path);
     println!("cargo:rustc-link-lib=static=mbedcrypto");
-
+    
     Ok(())
 }
 
@@ -103,14 +103,25 @@ fn bind_to_cpm() -> Result<()> {
     let oe_inc_dir = oe_package_prefix.clone() + &"/include/";
     let oe_lib_dir = oe_package_prefix.clone() + &"/lib/openenclave/host/";
     let output_dir = std::env::var("OUT_DIR").unwrap();
+    let opteec_dir =oe_package_prefix.clone() + &"/lib/openenclave/optee/libteec/";
+
+    let cps_var = std::env::var("CPS_DIR");
+
+    if cps_var.is_err() {
+        return Err(Error::new(
+            ErrorKind::Other,
+            "Please set the CPS_DIR environment variable.",
+        ));
+    }
+    let cps_dir = cps_var.unwrap();
 
     // Tell Cargo that if the given file changes, to rerun this build script.
-    println!("cargo:rerun-if-changed=../ConfidentialPackageSpecification/ConfidentialPackageSpecification.edl");
+    println!("cargo:rerun-if-changed={}/ConfidentialPackageSpecification.edl", cps_dir);
 
     // TODO: This EDL file is coming from outside of the repo. We should probably bring it in as a Git submodule.
     let _res = std::process::Command::new("oeedger8r")
         .arg("--untrusted")
-        .arg("../ConfidentialPackageSpecification/ConfidentialPackageSpecification.edl")
+        .arg(format!("{}/ConfidentialPackageSpecification.edl", cps_dir))
         .arg("--untrusted-dir")
         .arg(output_dir.clone())
         .spawn()
@@ -166,6 +177,10 @@ fn bind_to_cpm() -> Result<()> {
     println!("cargo:rustc-link-lib=oehost");
     println!("{}{}", "cargo:rustc-link-search=", oe_lib_dir);
 
+    // Pull in OPTEE Client library
+    println!("cargo:rustc-link-lib=teec");
+    println!("{}{}", "cargo:rustc-link-search=", opteec_dir);
+    
     Ok(())
 }
 
