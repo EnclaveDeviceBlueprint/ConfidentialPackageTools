@@ -1,3 +1,6 @@
+// Copyright 2021 Contributors to the Confidential Packaging project.
+// SPDX-License-Identifier: MIT
+
 //! Source code for the `cpk-tool` project. This is a command-line interface for building
 //! and installing confidential packages.
 
@@ -33,4 +36,6 @@
 pub mod cli;
 pub mod common;
 pub mod error;
+pub mod prototype;
 pub mod subcommands;
+pub mod util;

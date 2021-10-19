@@ -1,3 +1,6 @@
+// Copyright 2021 Contributors to the Confidential Packaging project.
+// SPDX-License-Identifier: MIT
+
 //! Base CLI implementation.
 
 use crate::common::{PROJECT_AUTHOR, PROJECT_DESC, PROJECT_NAME, PROJECT_VERSION};
