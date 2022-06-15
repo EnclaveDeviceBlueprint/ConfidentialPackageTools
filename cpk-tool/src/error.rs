@@ -38,6 +38,11 @@ pub enum Error {
     /// Error emanating from the cpk-tool itself.
     #[error(transparent)]
     ToolError(#[from] ToolErrorKind),
+
+    /// Error coming from base64 string decoding, which only occurs in the sync command
+    #[error(transparent)]
+    #[cfg(feature = "sync")]
+    Base64Error(#[from] base64::DecodeError),
 }
 
 /// Errors originating in the cpk-tool itself.

@@ -18,7 +18,9 @@ use structopt::StructOpt;
 /// Models the options required by the sync command.
 #[derive(Debug, StructOpt)]
 pub struct Sync {
-    /// The synchronization method to use, either "http", "file" or "azuretwin".
+    /// The synchronization method to use, either "http", "file", "commandline" or "azuretwin".
+    ///
+    /// (Status note: the "azuretwin" option is defined but not yet implemented in the tool).
     #[structopt(short = "m", long = "key-method")]
     method: String,
 
@@ -42,8 +44,17 @@ pub struct Sync {
     /// be resolved from the CP_FILE_KEY_SOURCE environment variable instead. If it is not specified
     /// there either, then the command will fail.
     ///
+    /// When the synchronization method is `commandline`, this argument should directly contain the
+    /// wrapped key data as base64 encoding of the wrapped encryption key. When using this mechanism,
+    /// the caller is assumed to have already obtained the wrapped key from a suitable source, and
+    /// the wrapping is assumed to have been performed using the public part of the device key. In
+    /// this situation, the tool is not responsible for reading the wrapped key from any other source.
+    /// It will simply take the data from the command-line and pass it directly into the
+    /// Confidential Package Manager, with no other processing other than base64 decoding.
+    ///
     /// When the synchronization method is `azuretwin`, this argument is currently unused, because all
-    /// configuration is read from environment variables.
+    /// configuration is read from environment variables. (Note: the `azuretwin` mechanism is
+    /// not implemented yet).
     #[structopt(short = "k", long = "key-store")]
     key_store: Option<String>,
 }
@@ -67,7 +78,11 @@ impl Sync {
 
     /// Implements the command for the HTTP (WebContract) sync method.
     fn sync_using_http(&self, cpm: &ConfidentialPackageManager) -> Result<()> {
-        let endpoint = get_config_from_command_or_env(&self.key_store, "CP_CLOUD_KEY_SOURCE", "HTTP key store endpoint")?;
+        let endpoint = get_config_from_command_or_env(
+            &self.key_store,
+            "CP_CLOUD_KEY_SOURCE",
+            "HTTP key store endpoint",
+        )?;
 
         let keysource = WebContractKeySource::from_endpoint_uri(&endpoint);
 
@@ -84,11 +99,32 @@ impl Sync {
     fn sync_using_file(&self, cpm: &ConfidentialPackageManager) -> Result<()> {
         // Echo a warning so that users are clear that this is only for local test environments.
         println!("WARNING: File-based key stores should only be used in local test environments.");
-        let filepath = get_config_from_command_or_env(&self.key_store, "CP_FILE_KEY_SOURCE", "key store file path")?;
+        let filepath = get_config_from_command_or_env(
+            &self.key_store,
+            "CP_FILE_KEY_SOURCE",
+            "key store file path",
+        )?;
 
         let keysource = FileKeySource::from_file_path(&filepath)?;
 
         self.sync_using_key_source(&keysource, cpm)
+    }
+
+    /// Implements the command for a degenerate key store where the wrapped data is passed directly on the
+    /// command line as base64.
+    fn sync_using_command_line(&self, cpm: &ConfidentialPackageManager) -> Result<()> {
+        println!("Decoding base64 key data from command-line parameter...");
+        if let Some(key_data) = &self.key_store {
+            let wrapped = base64::decode(&key_data)?;
+            println!("Unwrapping...");
+            cpm.install_application_key(&self.application_id, &wrapped)?;
+            println!("Done.");
+            Ok(())
+        }
+        else {
+            println!("Error: No key data supplied for commandline sync method. Please supply -k argument with base64-encoded key data.");
+            Err(Error::ToolError(ToolErrorKind::MissingConfiguration))
+        }
     }
 
     /// Synchronizes the class key for a given application identity from its cloud-based key source
@@ -101,9 +137,10 @@ impl Sync {
             "http" => self.sync_using_http(&cpm),
             "file" => self.sync_using_file(&cpm),
             "azuretwin" => self.sync_using_azure_twin(&cpm),
+            "commandline" => self.sync_using_command_line(&cpm),
             _ => {
                 println!(
-                    "Invalid synchronization method. Please specify either `http` or `azuretwin`."
+                    "Invalid synchronization method. Please specify either `http`, `file` or `commandline`."
                 );
                 Err(Error::ToolError(ToolErrorKind::InvalidSyncMethod))
             }

@@ -391,6 +391,7 @@ impl ConfidentialPackageManager {
 
 #[cfg(not(feature = "cpm-simulator"))]
 use std::ffi::CStr;
+#[cfg(not(feature = "cpm-simulator"))]
 #[no_mangle]
 pub fn ocall_log(msg: *mut ::std::os::raw::c_char) -> ::std::os::raw::c_int {
     // TODO, output to somewhere more defined
