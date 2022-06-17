@@ -43,6 +43,12 @@ pub enum Error {
     #[error(transparent)]
     #[cfg(feature = "sync")]
     Base64Error(#[from] base64::DecodeError),
+
+    /// Error coming from ASN.1 DER processing, which only occurs in the pub-key command
+    /// (included with the sync feature).
+    #[error(transparent)]
+    #[cfg(feature = "sync")]
+    Asn1DerError(#[from] picky_asn1_der::Asn1DerError),
 }
 
 /// Errors originating in the cpk-tool itself.
