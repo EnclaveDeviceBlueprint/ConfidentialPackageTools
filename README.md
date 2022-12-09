@@ -91,7 +91,7 @@ expressed in the Enclave Definition Language (EDL), which is part of the
 [OpenEnclave](https://openenclave.io/sdk/) project. The use of OpenEnclave and EDL is central to the
 way that these tools maintain portability across different TEE or enclave technologies. You can
 learn more about the EDL contract in the [Confidential Package
-Specification](https://github.com/Scalys/ConfidentialPackageSpecification) repository.
+Specification](https://github.com/EnclaveDeviceBlueprint/ConfidentialPackageSpecification) repository.
 
 The tools also expect to interact with a **key store**, which provides the encryption keys that are
 used to protect the confidential payloads within the package. For development and experimentation,
@@ -99,13 +99,13 @@ it is possible to use a simple file on disk as the key store. In real-world depl
 is expected that the key store would be a service such as a managed HSM or cloud key vault. Since
 such services are highly variable in terms of their behaviour and their APIs, the tools use a simple
 HTTP web contract that can easily be implemented by a serverless function. Learn more about this in
-the [Confidential Package Specification](https://github.com/Scalys/ConfidentialPackageSpecification)
+the [Confidential Package Specification](https://github.com/EnclaveDeviceBlueprint/ConfidentialPackageSpecification)
 repository.
 
 ## What Is The File Format?
 
 The file format for confidential packages is documented in the [Confidential Package
-Specification](https://github.com/Scalys/ConfidentialPackageSpecification) repository.
+Specification](https://github.com/EnclaveDeviceBlueprint/ConfidentialPackageSpecification) repository.
 
 ## Can The Tools Be Installed?
 
